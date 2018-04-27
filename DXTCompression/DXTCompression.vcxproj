@@ -131,13 +131,14 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="DXTConverter.cpp" />
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="utility\utility.cpp" />
     <ClCompile Include="utility\utility_debug.cpp" />
     <ClCompile Include="utility\utility_sdl.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="utility\utility.h" />
+    <ClInclude Include="define.h" />
+    <ClInclude Include="DXTConverter.h" />
     <ClInclude Include="utility\utility_debug.h" />
     <ClInclude Include="utility\utility_sdl.h" />
   </ItemGroup>

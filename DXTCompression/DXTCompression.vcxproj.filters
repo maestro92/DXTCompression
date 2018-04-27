@@ -18,24 +18,27 @@
     <ClCompile Include="main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="utility\utility.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="utility\utility_debug.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="utility\utility_sdl.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="DXTConverter.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="utility\utility.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="utility\utility_debug.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="utility\utility_sdl.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="DXTConverter.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="define.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
