@@ -20,6 +20,8 @@ class DXTConverter
 
 		void decompressIndices(uint32 compressedIndices, unsigned int* indices);
 
+		void DebugColor(uint8* color);
+		void DebugColor565(uint16 color);
 
 		// http://www.matejtomcik.com/Public/KnowHow/DXTDecompression/
 		void decompress(const uint8* sourceImagePixels, uint8* outputImagePixels, int width, int height);

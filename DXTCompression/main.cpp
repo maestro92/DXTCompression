@@ -142,12 +142,12 @@ void createImage(uint8* pixels, int width, int height)
 		//	ptr[ps] = pixels[ps];
 
 			uint8* ptr = (uint8*)image->pixels;
-			cout << x << " " << y << " " << ps << ", ";
+		//	cout << x << " " << y << " " << ps << ", ";
 		//	printPixel(ptr, ps);
 
 		//	ptr[ps] = pixels[ps];
 
-		//	setImageColor(&ptr[ps], ps, &pixels[ps]);
+			setImageColor(ptr, ps, &pixels[ps]);
 
 		//	cout << "ps " << ps << endl;
 	//		cout << x << " " << y << endl;
@@ -224,12 +224,18 @@ int main(int argc, char *argv[])
 	uint8* newImage0Pixels = new uint8[numBytes];
 	dxtConverter.decompress(compressedImage0Pixels, newImage0Pixels, image0->w, image0->h);
 	
-	cout << "Printing new Image" << endl;
-	printImage(newImage0Pixels, image0->w, image0->h);
+//	cout << "Printing new Image" << endl;
+//	printImage(newImage0Pixels, image0->w, image0->h);
+
+	createImage(newImage0Pixels, image0->w, image0->h);
+
+
+	cout << "Done Creating Image" << endl;
+
 	while (1)
 	{
 	}
-//	createImage(newImage0Pixels, image0->w, image0->h);
+//	
 
 	//Apply image to screen
 	SDL_BlitSurface(image0, NULL, screen, NULL);
