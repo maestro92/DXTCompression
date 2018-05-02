@@ -1,10 +1,61 @@
 #pragma once
 #include "define.h"
 #include <iostream>
+#include <vector>
 using namespace std;
 
 class DXTConverter
 {
+
+	struct Coord
+	{
+		int x;
+		int y;
+	};
+
+	struct MemoryDebugStruct
+	{
+		int bx;
+		int by;
+		vector<uint8> data;
+
+		bool operator==(const MemoryDebugStruct &other) const {
+			
+			if (data.size() != other.data.size())
+			{
+				cout << "Size is not the same at " << bx << " " << by << endl;
+				return false;
+			}
+
+			for (int i = 0; i < data.size(); i++)
+			{
+				if ((int)(data[i]) != (int)(other.data[i]))
+				{
+					cout << "	item not equal at " << bx << " " << by << " at index " << i << endl;
+	
+					for (int j = 0; j < data.size(); j++)
+					{
+						cout << (int)(data[j]) << " ";
+					}
+					cout << endl;
+
+					for (int j = 0; j < other.data.size(); j++)
+					{
+						cout << (int)(other.data[j]) << " ";
+					}
+					cout << endl;
+
+
+
+					
+					return false;
+				}
+			}
+
+			return true;
+		}
+	};
+
 	public:
 		void compressImageDXT1(const uint8* sourceImagePixels, uint8* outputImagePixels, int width, int height, int &outputBytes);
 		int getColorDistance(const uint8* color0, const uint8* color1);
@@ -29,13 +80,25 @@ class DXTConverter
 		void recreateImagePixels(uint8* colorPalette, unsigned int* indices, int bx, int by, int width, int height, uint8* outputImagePixels);
 		void recreateBlock(uint8* colorPalette, unsigned int* indices, int bx, int by, int width, int height, uint8* outputImagePixels);
 
+
+
 		void printBlock(uint8* block);
 		static void printColor(uint8* color);
 		static void printPixel(uint8* image, int pixelStart);
 		static int pixelIndex2PixelStart(int width, int px, int py);
 		static int blockIndex2PixelStart(int width, int bx, int by, int indexInBlock);
 
+		static Coord blockIndex2PixelIndex(int width, int bx, int by, int indexInBlock);
+
+		void setImageColor(uint8* image, Coord coord, uint8* color);
+		void setImageColor(uint8* image, int width, Coord coord, uint8* color);
+
+		void setImageColorByPixelIndex(uint8* image, int px, int py, uint8* color);
+
 		void setImageColor(uint8* image, int pixelStart, uint8* color);
+		void AddToDebugMemoryString(uint8* ptr, int bx, int by, vector<MemoryDebugStruct>& dm);
+
+		void compareDM();
 
 private:
 		// assuming little endian
@@ -58,6 +121,9 @@ private:
 
 
 		uint8* m_internalPtr;
+
+		vector<MemoryDebugStruct> debugMemory;
+		vector<MemoryDebugStruct> debugMemory2;
 };
 
 

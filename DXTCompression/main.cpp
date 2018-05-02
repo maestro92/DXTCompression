@@ -216,14 +216,18 @@ int main(int argc, char *argv[])
 	int numCompressedBytes = numBytes / 8;
 	cout << "numCompressedBytes " << numCompressedBytes << endl;
 	uint8* compressedImage0Pixels = new uint8[numCompressedBytes];
+	memset(compressedImage0Pixels, 0, numCompressedBytes);
 	int outputBytes = 0;
 
 	DXTConverter dxtConverter;
 	dxtConverter.compressImageDXT1((uint8*)image0->pixels, (uint8*)compressedImage0Pixels, image0->w, image0->h, outputBytes);
 
 	uint8* newImage0Pixels = new uint8[numBytes];
+	memset(newImage0Pixels, 0, numBytes);
+	cout << "numBytes " << numBytes << endl;
 	dxtConverter.decompress(compressedImage0Pixels, newImage0Pixels, image0->w, image0->h);
 	
+//	dxtConverter.compareDM();
 //	cout << "Printing new Image" << endl;
 //	printImage(newImage0Pixels, image0->w, image0->h);
 

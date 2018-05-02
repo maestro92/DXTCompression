@@ -2,8 +2,8 @@
 
 #include <bitset>
 
-int targetX = 0;
-int targetY = 1;
+int targetX = 2;
+int targetY = 2;
 
 /*
 width and height are in pixels, not in bytes
@@ -12,19 +12,6 @@ width and height are in pixels, not in bytes
 
 void DXTConverter::DebugColor(uint8* color)
 {
-	/*
-	uint32 value = *((uint32*)color);
-
-	printColor(color);
-	std::bitset<32> bitColor(value);
-	cout << bitColor << endl;
-
-	uint16 color565 = color888to565(color);
-	std::bitset<16> bitColor2(color565);
-	cout << bitColor2 << endl;
-	*/
-
-
 	printColor(color);
 
 	uint8 a0 = color[0];
@@ -57,6 +44,32 @@ void DXTConverter::DebugColor565(uint16 color565)
 	std::bitset<5> b22(b);
 
 	cout << b22 << " " << b11 << " " << b00 << endl << endl << endl;
+}
+
+void DXTConverter::AddToDebugMemoryString(uint8* ptr, int bx, int by, vector<MemoryDebugStruct>& dm)
+{
+	uint8 a0 = ptr[0];
+	uint8 a1 = ptr[1];
+	uint8 a2 = ptr[2];
+	uint8 a3 = ptr[3];
+
+	std::bitset<8> a00(a0);
+	std::bitset<8> a11(a1);
+	std::bitset<8> a22(a2);
+	std::bitset<8> a33(a3);
+
+	vector<uint8> list;
+	list.push_back(a0);
+	list.push_back(a1);
+	list.push_back(a2);
+	list.push_back(a3);
+
+	MemoryDebugStruct mds;
+	mds.bx = bx;
+	mds.by = by;
+	mds.data = list;
+
+	dm.push_back(mds);
 }
 
 void DXTConverter::compressImageDXT1(const uint8* sourceImagePixels,
@@ -98,12 +111,17 @@ void DXTConverter::compressImageDXT1(const uint8* sourceImagePixels,
 				DebugColor(maxColor);	DebugColor565(color888to565(maxColor));
 			}
 			
+
+
 			uint16 compressedMaxColor = color888to565(maxColor);
 			uint16 compressedMinColor = color888to565(minColor);
 			
-
+			uint8* temp = m_internalPtr;
 			write(compressedMaxColor);
 			write(compressedMinColor);
+
+			AddToDebugMemoryString(temp, bx, by, debugMemory);
+
 
 			uint32 indices = getCompressedIndices(block4x4, minColor, maxColor);
 			write(indices);
@@ -452,18 +470,25 @@ void DXTConverter::decompress(const uint8* compressedImagePixels, uint8* outputI
 
 //	printDXTImage(compressedImagePixels, numBlocksX, numBlocksY);
 	
+	int index = 0;
+
 	// every 4x4 block
 	for (int y = 0; y < numBlocksY; y++)
 	{
 		for (int x = 0; x < numBlocksX; x++)
 		{
 			int startIndex = (y * numBlocksX + x) * 8;
-//			cout << "startIndex " << startIndex << ", x " << x << ", y " << y << endl;
+		//	cout << "startIndex " << startIndex << ", x " << x << ", y " << y << endl;
 			// 0, 51 giving me error
 //			readCompressed4x4Block(&compressedImagePixels[startIndex], compressedBlock, startIndex, x, y);
 
 			readCompressed4x4Block(compressedImagePixels, compressedBlock, startIndex, x, y);
 
+
+			if (x >= numBlocksX / 4)
+			{
+				break;
+			}
 			decompressDXTBlock(compressedBlock, outputImagePixels, x, y, width, height);			
 		}
 
@@ -471,7 +496,7 @@ void DXTConverter::decompress(const uint8* compressedImagePixels, uint8* outputI
 		// 4 is numBytes in each pixel
 		int numBytesIn4x4BlockRow = width * 4 * 4;
 
-		compressedImagePixels += numBytesIn4x4BlockRow;
+	//	compressedImagePixels += numBytesIn4x4BlockRow;
 	}
 	
 	
@@ -490,6 +515,26 @@ void DXTConverter::readCompressed4x4Block(const uint8* source, uint8* outputBloc
 
 void decompressIndices(uint32 compressedIndices, unsigned int* indices);
 
+
+void DXTConverter::compareDM()
+{
+	if (debugMemory.size() != debugMemory2.size())
+	{
+		cout << "size is the same " << endl;
+	}
+
+
+	for (int i = 0; i < debugMemory.size(); i++)
+	{
+		if ((debugMemory[i] == debugMemory2[i]) == false)
+		{
+			cout << "error happening at here" << endl;
+		}
+		
+	}
+	
+}
+
 void DXTConverter::decompressDXTBlock(uint8* DXTBlock, uint8* outputImagePixels, int bx, int by, int width, int height)
 {
 
@@ -501,11 +546,11 @@ void DXTConverter::decompressDXTBlock(uint8* DXTBlock, uint8* outputImagePixels,
 
 	uint8* temp = DXTBlock;
 
+	AddToDebugMemoryString(temp, bx, by, debugMemory2);
+
 	m_internalPtr = DXTBlock;
 	uint16 compressedMaxColor = readUint16();
 	uint16 compressedMinColor = readUint16();
-
-
 
 	color565to888(compressedMaxColor, maxColor);
 	color565to888(compressedMinColor, minColor);
@@ -519,6 +564,13 @@ void DXTConverter::decompressDXTBlock(uint8* DXTBlock, uint8* outputImagePixels,
 	}
 
 	build4ColorPalette(colorPalette, minColor, maxColor);
+
+	/*
+	DebugColor(&colorPalette[0]);
+	DebugColor(&colorPalette[4]);
+	DebugColor(&colorPalette[8]);
+	DebugColor(&colorPalette[12]);
+	*/
 
 	unsigned int indices[NUM_PIXELS_IN_BLOCK];
 	uint32 compressedIndices = readUint32();
@@ -591,6 +643,37 @@ int DXTConverter::blockIndex2PixelStart(int width, int bx, int by, int indexInBl
 }
 
 
+DXTConverter::Coord DXTConverter::blockIndex2PixelIndex(int width, int bx, int by, int indexInBlock)
+{
+	int numBlocksX = width / 4;
+	int bi = (by * numBlocksX + bx);
+	int firstPixelIndex = bi * 16;
+
+
+	int y = indexInBlock / 4;
+	int x = indexInBlock % 4;
+
+	int py = by * 4 + y;
+	int px = bx * 4 + x;
+
+	Coord coord;
+	coord.x = px;
+	coord.y = py;
+	// cout << px << " " << py << endl;
+
+	return coord;
+
+	/*
+	cout << px << " " << py << endl;
+
+
+	// width:		num a pixels in a row
+	// width * 4:	numBytes in a row
+	return firstPixelIndex + y * width + x;
+	*/
+}
+
+
 int DXTConverter::pixelIndex2PixelStart(int width, int px, int py)
 {
 	return (py * width + px) * 4;
@@ -611,6 +694,17 @@ void DXTConverter::setImageColor(uint8* image, int pixelStart, uint8* color)
 }
 
 
+void DXTConverter::setImageColor(uint8* image, int width, Coord coord, uint8* color)
+{
+	int pixelStart = coord.y * width * 4 + coord.x * 4;
+	image[pixelStart + 0] = color[0];
+	image[pixelStart + 1] = color[1];
+	image[pixelStart + 2] = color[2];
+	image[pixelStart + 3] = color[3];
+}
+
+
+
 void DXTConverter::recreateImagePixels(uint8* colorPalette, unsigned int* indices, int bx, int by, int width, int height, uint8* outputImagePixels)
 {
 	int numBlocksX = width / 4;
@@ -621,11 +715,17 @@ void DXTConverter::recreateImagePixels(uint8* colorPalette, unsigned int* indice
 	{
 		for (int x = 0; x < 4; x++)
 		{
-			int pixelIndex = blockIndex2PixelStart(width, bx, by, y * 4 + x);
+			int pixelStart = blockIndex2PixelStart(width, bx, by, y * 4 + x);
+
+		//	int pi = blockIndex2PixelIndex(width, bx, by, y * 4 + x);
+			Coord coord = blockIndex2PixelIndex(width, bx, by, y * 4 + x);
 
 			int colorIndex = indices[y * 4 + x];
-			
-			setImageColor(outputImagePixels, pixelIndex, &colorPalette[colorIndex]);
+		//	cout << colorIndex << endl;
+		//	DebugColor(&colorPalette[colorIndex * 4]);
+
+
+			setImageColor(outputImagePixels, width, coord, &colorPalette[colorIndex]);
 		}
 
 	}
