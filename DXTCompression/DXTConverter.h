@@ -73,6 +73,8 @@ class DXTConverter
 
 		void DebugColor(uint8* color);
 		void DebugColor565(uint16 color);
+		void reverse(uint8* sourceImagePixels, int width, int height);
+		void reverse(const uint8* sourceImagePixels, uint8* outputImagePixels, int width, int height);
 
 		// http://www.matejtomcik.com/Public/KnowHow/DXTDecompression/
 		void decompress(const uint8* sourceImagePixels, uint8* outputImagePixels, int width, int height);
@@ -80,15 +82,14 @@ class DXTConverter
 		void recreateImagePixels(uint8* colorPalette, unsigned int* indices, int bx, int by, int width, int height, uint8* outputImagePixels);
 		void recreateBlock(uint8* colorPalette, unsigned int* indices, int bx, int by, int width, int height, uint8* outputImagePixels);
 
-
+		void ABGR2RBGA(uint8* color);
 
 		void printBlock(uint8* block);
 		static void printColor(uint8* color);
 		static void printPixel(uint8* image, int pixelStart);
 		static int pixelIndex2PixelStart(int width, int px, int py);
-		static int blockIndex2PixelStart(int width, int bx, int by, int indexInBlock);
+		static int blockIndex2PixelStart(int width, int bx, int by, int localBlockX, int localBlockY);
 
-		static Coord blockIndex2PixelIndex(int width, int bx, int by, int indexInBlock);
 
 		void setImageColor(uint8* image, Coord coord, uint8* color);
 		void setImageColor(uint8* image, int width, Coord coord, uint8* color);
