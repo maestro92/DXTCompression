@@ -1,5 +1,5 @@
 
-
+#include <fstream>
 #include "define.h"
 #include "utility_sdl.h"
 #include "DXTConverter.h"
@@ -31,6 +31,7 @@ SDL_Surface* createTestImage()
 
 	SDL_Surface *surface;
 	Uint32 rmask, gmask, bmask, amask;
+
 #if SDL_BYTEORDER == SDL_BIG_ENDIAN
 	rmask = 0xff000000;
 	gmask = 0x00ff0000;
@@ -42,6 +43,7 @@ SDL_Surface* createTestImage()
 	bmask = 0x00ff0000;
 	amask = 0xff000000;
 #endif
+
 
 	surface = SDL_CreateRGBSurface(0, sprite_size, sprite_size, 32,
 		rmask, gmask, bmask, amask);
@@ -87,8 +89,6 @@ void setImageColor(uint8* image, int pixelStart, uint8* color)
 	image[pixelStart + 1] = color[1];
 	image[pixelStart + 2] = color[2];
 	image[pixelStart + 3] = color[3];
-	image[pixelStart + 3] = 255;
-
 }
 
 void setImageAlpha(uint8* image, int pixelStart)
@@ -97,10 +97,11 @@ void setImageAlpha(uint8* image, int pixelStart)
 }
 
 
-void createImage(uint8* pixels, int width, int height)
+void createImage(string filename, uint8* pixels, int width, int height)
 {
 	SDL_Surface *image;
 	Uint32 rmask, gmask, bmask, amask;
+	
 #if SDL_BYTEORDER == SDL_BIG_ENDIAN
 	rmask = 0xff000000;
 	gmask = 0x00ff0000;
@@ -125,39 +126,12 @@ void createImage(uint8* pixels, int width, int height)
 		for (int x = 0; x < width; x++)
 		{
 			int ps = DXTConverter::pixelIndex2PixelStart(width, x, y);
-
-			// uint32* ptr = (uint32*)surface->pixels;
-			// uint32 color = 0xff00ffff;
-			// ptr[pixelIndex] = color;
-			// these two are equivalent
-			/*
-			if (x == 108 && y == 32)
-			{
-				cout << "ps " << ps << endl;
-				cout << x << " " << y << endl;
-			}
-			*/
-
-		//	uint32* ptr = (uint32*)image->pixels;
-		//	ptr[ps] = pixels[ps];
-
 			uint8* ptr = (uint8*)image->pixels;
-		//	cout << x << " " << y << " " << ps << ", ";
-		//	printPixel(ptr, ps);
-
-		//	ptr[ps] = pixels[ps];
-
 			setImageColor(ptr, ps, &pixels[ps]);
-
-		//	cout << "ps " << ps << endl;
-	//		cout << x << " " << y << endl;
-
-		//	setImageAlpha((uint8*)(image->pixels), ps);
-			// making sure the alpha is full
 		}
 	}
 
-	SDL_SaveBMP(image, "new.bmp");
+	SDL_SaveBMP(image, filename.c_str());
 }
 
 
@@ -166,7 +140,7 @@ void createImage(uint8* pixels, int width, int height)
 
 
 
-void printImage(uint8* image, int w, int h )
+void printImage(uint8* image, int w, int h)
 {
 	for (int y = 0; y < h; y++)
 	{
@@ -196,19 +170,265 @@ void printImage(uint8* image, int w, int h )
 
 
 
+void SetImageFullAlpha(uint8* pixels, int width, int height)
+{
+	SDL_Surface *image;
+	Uint32 rmask, gmask, bmask, amask;
+	
+#if SDL_BYTEORDER == SDL_BIG_ENDIAN
+	rmask = 0xff000000;
+	gmask = 0x00ff0000;
+	bmask = 0x0000ff00;
+	amask = 0x000000ff;
+#else
+	rmask = 0x000000ff;
+	gmask = 0x0000ff00;
+	bmask = 0x00ff0000;
+	amask = 0xff000000;
+#endif
+
+	image = SDL_CreateRGBSurface(0, width, height, 32,
+		rmask, gmask, bmask, amask);
+	if (image == NULL) {
+		cout << SDL_GetError() << endl;
+		exit(1);
+	}
+
+	for (int y = 0; y < height; y++)
+	{
+		for (int x = 0; x < width; x++)
+		{
+			// uint32* ptr = (uint32*)image->pixels;
+			// ptr[y * width + x] = ((uint32*)pixels)[y * width + x];
+			
+
+			int ps = DXTConverter::pixelIndex2PixelStart(width, x, y);
+			
+			uint8* ptr = (uint8*)image->pixels;
+		
+			// R G B A
+			ptr[ps] = pixels[ps];
+			ptr[ps + 1] = pixels[ps + 1];
+			ptr[ps + 2] = pixels[ps + 2];
+			ptr[ps + 3] = pixels[ps + 3];			
+			
+
+			/*
+			ptr[ps] = pixels[ps + 3];
+			ptr[ps + 1] = pixels[ps + 2];
+			ptr[ps + 2] = pixels[ps + 1];
+			ptr[ps + 3] = pixels[ps];
+			*/
+		}
+	}
+
+	SDL_SaveBMP(image, "lena_full_alpha2.bmp");
+}
+
+
+
+void testWriteAndReadUint16(uint8* src, int width, int height)
+{
+	int numBytes = width * height * 4;
+	uint8* writeBuffer = new uint8[width * height * 4];
+	memset(writeBuffer, 0, numBytes);
+
+
+	DXTConverter dxtConverter;
+	dxtConverter.m_internalPtr = writeBuffer;
+
+	for (int y = 0; y < height; y++)
+	{
+		for (int x = 0; x < width; x++)
+		{
+			int index = (y * width + x) * 2;
+
+			uint16 pixelValue = ((uint16*)src)[index];
+			dxtConverter.writeUint16(pixelValue);
+
+			pixelValue = ((uint16*)src)[index + 1];
+			dxtConverter.writeUint16(pixelValue);
+		}
+	}
+
+
+	uint8* newImageBuffer = new uint8[width * height * 4];
+
+	dxtConverter.m_internalPtr = writeBuffer;
+	for (int y = 0; y < height; y++)
+	{
+		for (int x = 0; x < width; x++)
+		{
+			int index = (y * width + x) * 2;
+
+			uint16 pixelValue = dxtConverter.readUint16();
+			((uint16*)newImageBuffer)[index] = pixelValue;
+
+			pixelValue = dxtConverter.readUint16();
+			((uint16*)newImageBuffer)[index + 1] = pixelValue;
+		}
+	}
+
+
+	createImage("testUint16.bmp", newImageBuffer, width, height);
+
+}
+
+
+void testWriteAndReadUint32(uint8* src, int width, int height)
+{
+	int numBytes = width * height * 4;
+
+	uint8* writeBuffer = new uint8[width * height * 4];
+	memset(writeBuffer, 0, numBytes);
+
+
+	DXTConverter dxtConverter;
+	dxtConverter.m_internalPtr = writeBuffer;
+
+	for (int y = 0; y < height; y++)
+	{
+		for (int x = 0; x < width; x++)
+		{
+			uint32 pixelValue = ((uint32*)src)[y * width + x];
+			dxtConverter.writeUint32(pixelValue);
+		}
+	}
+
+
+	uint8* newImageBuffer = new uint8[width * height * 4];
+
+	dxtConverter.m_internalPtr = writeBuffer;
+	for (int y = 0; y < height; y++)
+	{
+		for (int x = 0; x < width; x++)
+		{
+			uint32 pixelValue = dxtConverter.readUint32();
+			((uint32*)newImageBuffer)[y * width + x] = pixelValue;
+		}
+	}
+
+
+	createImage("testUint32.bmp", newImageBuffer, width, height);
+
+}
+
+void testDXTConveterReadAndWrite(uint8* src, int width, int height)
+{
+	testWriteAndReadUint16(src, width, height);
+	testWriteAndReadUint32(src, width, height);
+}
+
+
+
+void testDXTConverterGetBlock(uint8* src, int width, int height)
+{
+	DXTConverter dxtConverter;
+
+	uint8* rgbPixels = new uint8[width * height * 4];
+	uint8 block4x4[64];
+	dxtConverter.Copy(src, rgbPixels, width, height);
+
+	createImage("testCopy.bmp", rgbPixels, width, height);
+
+	uint8* newImageBuffer = new uint8[width * height * 4];
+
+	int numBlocksX = width / 4;
+	int numBlocksY = height / 4;
+
+	for (int by = 0; by < numBlocksY; by++)
+	{
+		for (int bx = 0; bx < numBlocksX; bx++)
+		{
+			dxtConverter.get4x4Block(rgbPixels, width, bx, by, block4x4);
+		}
+	}
+}
+
+
+
+void testIndicies(int width, int height)
+{
+	SDL_Surface *image;
+	Uint32 rmask, gmask, bmask, amask;
+
+#if SDL_BYTEORDER == SDL_BIG_ENDIAN
+	rmask = 0xff000000;
+	gmask = 0x00ff0000;
+	bmask = 0x0000ff00;
+	amask = 0x000000ff;
+#else
+	rmask = 0x000000ff;
+	gmask = 0x0000ff00;
+	bmask = 0x00ff0000;
+	amask = 0xff000000;
+#endif
+
+	image = SDL_CreateRGBSurface(0, width, height, 32,
+		rmask, gmask, bmask, amask);
+	if (image == NULL) {
+		cout << SDL_GetError() << endl;
+		exit(1);
+	}
+
+	uint8 color[4];
+	color[0] = 255;
+	color[1] = 255;
+	color[2] = 255;
+	color[3] = 255;
+
+
+	for (int y = 0; y < height; y++)
+	{
+		for (int x = 0; x < width; x++)
+		{
+		
+			if (y % 4 == 0)
+			{
+				int ps = DXTConverter::pixelIndex2PixelStart(width, x, y);
+				uint8* ptr = (uint8*)image->pixels;
+				setImageColor(ptr, ps, color);
+			}
+		}
+	}
+
+
+	uint8 color2[4];
+	color2[0] = 255;
+	color2[1] = 0;
+	color2[2] = 0;
+	color2[3] = 255;
+
+	vector<int> list = { 1024, 1028, 1032, 1036 };
+	uint8* ptr2 = (uint8*)image->pixels;
+	for (int i = 0; i < list.size(); i++)
+	{
+		setImageColor(ptr2, list[i], color2);
+	}
+	SDL_SaveBMP(image, "testingIndices.bmp");
+}
+
+
+
+
+
+
 int main(int argc, char *argv[])
 {
 	SDL_Surface* screen;
 	utl::initSDL(SCREEN_WIDTH, SCREEN_HEIGHT, screen);
 	
-	SDL_Surface* image2 = createTestImage();
-
 	string path = "testImages/";
-	string image0Name = "lena.jpg";
+	string image0Name = "lena_full_alpha2.bmp";
 	SDL_Surface* image0 = utl::loadSDLImage(path + image0Name);
-//	string image0DXT = path + "compressed " + image0Name;
+
 	cout << "Printing Original Image" << endl;
-	printImage((uint8*)image0->pixels, image0->w, image0->h);
+//	SetImageFullAlpha((uint8*)(image0->pixels), image0->w, image0->h);
+//	testReadAndWrite((uint8*)image0->pixels, image0->w, image0->h);
+//	testDXTConverterGetBlock((uint8*)image0->pixels, image0->w, image0->h);
+	
+	
+//	testIndicies(image0->w, image0->h);
 
 	
 	// assuming 8:1 compression ratio
@@ -218,21 +438,46 @@ int main(int argc, char *argv[])
 	uint8* compressedImage0Pixels = new uint8[numCompressedBytes];
 	memset(compressedImage0Pixels, 0, numCompressedBytes);
 	int outputBytes = 0;
-
+	
+	
+	
 	DXTConverter dxtConverter;
+	
 	dxtConverter.compressImageDXT1((uint8*)image0->pixels, (uint8*)compressedImage0Pixels, image0->w, image0->h, outputBytes);
+	std::fstream writeFile;
+	writeFile = std::fstream("compressedLena.binary", std::ios::out | std::ios::binary);
+	writeFile.write((char*)compressedImage0Pixels, numCompressedBytes);
+	writeFile.close();
+	
+
+
+
+	streampos size;
+	char* compressedImageBinaryData = NULL;
+	ifstream readFile("compressedLena.binary", ios::in | ios::binary | ios::ate);
+	if (readFile.is_open())
+	{
+		size = readFile.tellg();
+		compressedImageBinaryData = new char[size];
+		readFile.seekg(0, ios::beg);
+		readFile.read(compressedImageBinaryData, size);
+		readFile.close();
+	}
+
 
 	uint8* newImage0Pixels = new uint8[numBytes];
 	memset(newImage0Pixels, 0, numBytes);
 	cout << "numBytes " << numBytes << endl;
-	dxtConverter.decompress(compressedImage0Pixels, newImage0Pixels, image0->w, image0->h);
+//	dxtConverter.decompress(compressedImage0Pixels, newImage0Pixels, image0->w, image0->h);
+	dxtConverter.decompress((uint8*)compressedImageBinaryData, newImage0Pixels, image0->w, image0->h);
+
+
+
+
+
+
+	createImage("new_decompress.bmp", newImage0Pixels, image0->w, image0->h);
 	
-//	dxtConverter.compareDM();
-//	cout << "Printing new Image" << endl;
-//	printImage(newImage0Pixels, image0->w, image0->h);
-
-	createImage(newImage0Pixels, image0->w, image0->h);
-
 
 	cout << "Done Creating Image" << endl;
 

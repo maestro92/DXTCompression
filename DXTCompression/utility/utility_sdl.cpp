@@ -61,16 +61,29 @@ SDL_Surface* utl::loadSDLImage(string filename)
 		return NULL;
 	}
 
+	Uint32 rmask, gmask, bmask, amask;
+#if SDL_BYTEORDER == SDL_BIG_ENDIAN
+	rmask = 0xff000000;
+	gmask = 0x00ff0000;
+	bmask = 0x0000ff00;
+	amask = 0x000000ff;
+#else
+	rmask = 0x000000ff;
+	gmask = 0x0000ff00;
+	bmask = 0x00ff0000;
+	amask = 0xff000000;
+#endif
+
     SDL_PixelFormat pixel_format = {NULL,
                                     32,             // converting to 32 bit pixel
                                     4,              // number of bytes
                                     0,0,0,0,        // byte lost
                                     0,0,0,0,        // byte shift
-                                    0xff000000,     // red mask
-                                    0x00ff0000,     // green mask
-                                    0x0000ff00,     // blue mask
-                                    0x000000ff,     // alpha mask
-                                    0,              // color code
+									rmask,     // red mask
+									gmask,     // green mask
+									bmask,     // blue mask
+									amask,     // alpha mask
+									0,              // color code
                                     255};           // alpha code
 
     // SDL_SWSURFACE means it's a software surface so we don't store it

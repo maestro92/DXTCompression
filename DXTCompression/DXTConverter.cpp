@@ -72,7 +72,7 @@ void DXTConverter::AddToDebugMemoryString(uint8* ptr, int bx, int by, vector<Mem
 	dm.push_back(mds);
 }
 
-
+/*
 void DXTConverter::ABGR2RBGA(uint8* color)
 {
 	for (int i = 0; i < 2; i++)
@@ -82,10 +82,11 @@ void DXTConverter::ABGR2RBGA(uint8* color)
 		color[4 - i - 1] = temp;
 	}
 }
+*/
 
 
 
-void DXTConverter::reverse(uint8* sourceImagePixels, int width, int height)
+void DXTConverter::Copy(const uint8* sourceImagePixels, uint8* outputImagePixels, int width, int height)
 {
 	uint8 tempColor;
 
@@ -93,51 +94,30 @@ void DXTConverter::reverse(uint8* sourceImagePixels, int width, int height)
 	{
 		for (int x = 0; x < width; x++)
 		{
-			int pixelStart = y * width * 4 + x * 4;
+			int pixelStart = y * width + x;
 
-			for (int i = 0; i < 2; i++)
-			{
-				tempColor = sourceImagePixels[pixelStart + i];
-				sourceImagePixels[pixelStart + i] = sourceImagePixels[pixelStart + 4 - i - 1];
-				sourceImagePixels[pixelStart + 4 - i - 1] = tempColor;
-			}
+			((uint32*)(outputImagePixels))[pixelStart] = ((uint32*)(sourceImagePixels))[pixelStart];			
 		}
 	}
 }
 
 
-
-void DXTConverter::reverse(const uint8* sourceImagePixels, uint8* outputImagePixels, int width, int height)
-{
-	uint8 tempColor;
-
-	for (int y = 0; y < height; y++)
-	{
-		for (int x = 0; x < width; x++)
-		{
-			int pixelStart = y * width * 4 + x * 4;
-
-			for (int i = 0; i < 4; i++)
-			{
-				outputImagePixels[pixelStart + 4 - i - 1] = sourceImagePixels[pixelStart + i];
-			}
-		}
-	}
-}
 
 
 
 void DXTConverter::compressImageDXT1(const uint8* sourceImagePixels,
 	uint8* outputImagePixels, int width, int height, int &outputBytes)
 {
-	uint8* rgbPixels = new uint8[width * height * 4];
-		
-	reverse(sourceImagePixels, rgbPixels, width, height);
+	uint8* rgbPixels = new uint8[width * height * 4];	
+	Copy(sourceImagePixels, rgbPixels, width, height);
 
 
 	// 4x4 pixels, each pixel is 4 bytes
 	// hence 64 bytes
 	uint8 block4x4[64];
+
+	// uint8 block4x4[64];
+
 	uint8 minColor[4];
 	uint8 maxColor[4];
 
@@ -173,14 +153,13 @@ void DXTConverter::compressImageDXT1(const uint8* sourceImagePixels,
 			uint16 compressedMinColor = color888to565(minColor);
 			
 			uint8* temp = m_internalPtr;
-			write(compressedMaxColor);
-			write(compressedMinColor);
+			writeUint16(compressedMaxColor);
+			writeUint16(compressedMinColor);
 
 			AddToDebugMemoryString(temp, bx, by, debugMemory);
-
-
+			
 			uint32 indices = getCompressedIndices(block4x4, minColor, maxColor);
-			write(indices);
+			writeUint32(indices);
 		}
 	}
 
@@ -265,24 +244,18 @@ void DXTConverter::color565to888(uint16 color, uint8* outputColor)
 	uint8 b = ((color & C565_B_MASK)) & 0xFF;
 	b = ((b << 3) | (b >> 2));
 
-	/*
-	outputColor[0] = 255;
-	outputColor[1] = b;
-	outputColor[2] = g;
-	outputColor[3] = r;
-	*/
+
 	outputColor[0] = r;
 	outputColor[1] = g;
 	outputColor[2] = b;
 	outputColor[3] = 255;
-
 }
 
 
 
 
 // assuming little endian
-void DXTConverter::write(uint16 value)
+void DXTConverter::writeUint16(uint16 value)
 {
 	m_internalPtr[0] = (value >> 0) & 0xFF;
 	m_internalPtr[1] = (value >> 8) & 0xFF;
@@ -300,7 +273,7 @@ void DXTConverter::write(uint16 value)
 // https://stackoverflow.com/questions/8680220/how-to-get-the-value-of-individual-bytes-of-a-variable
 // https://stackoverflow.com/questions/34885966/when-an-int-is-cast-to-a-short-and-truncated-how-is-the-new-value-determined
 // so why do we need the 0xFF mask?
-void DXTConverter::write(uint32 value)
+void DXTConverter::writeUint32(uint32 value)
 {
 	m_internalPtr[0] = (value >> 0) & 0xFF;
 	m_internalPtr[1] = (value >> 8) & 0xFF;
@@ -325,12 +298,31 @@ _ _ _ _		row3	48 - 63
 */
 void DXTConverter::get4x4Block(const uint8* sourceImageStart, int width, int bx, int by, uint8* outputBlock)
 {
+	
 	for (int y = 0; y < 4; y++)
 	{
-		int pixelStart = blockIndex2PixelStart(width, bx, by, 0, y * 4);
+		int pixelStart = blockIndex2PixelStart(width, bx, by, 0, y);
 
 		memcpy(&outputBlock[y * 4 * 4], &sourceImageStart[pixelStart], 4 * 4);
 	}
+	
+
+	/*
+	int i = 0;
+	for (int y = 0; y < 4; y++)
+	{
+		for (int x = 0; x < 4; x++)
+		{
+			int pixelStart = blockIndex2PixelStart(width, bx, by, x, y);
+
+			for (int j = 0; j < 4; j++)
+			{
+				outputBlock[i * 4 + j] = sourceImageStart[pixelStart + j];
+			}
+			i++;
+		}
+	}
+	*/
 }
 
 
@@ -358,7 +350,7 @@ void DXTConverter::getMinMaxColors_EuclideanDistance(uint8* block, uint8* minCol
 {
 	int maxDistance = -1;
 
-	int numPixels = 64 / NUM_BYTES_IN_PIXEL;
+	int numPixels = 16;
 
 	for (int i = 0; i < numPixels - 1; i++)
 	{
@@ -381,10 +373,12 @@ void DXTConverter::getMinMaxColors_EuclideanDistance(uint8* block, uint8* minCol
 		}
 	}
 
+	
 	if (color888to565(maxColor) < color888to565(minColor))
 	{
 		swapColors(minColor, maxColor);
 	}
+	
 }
 
 
@@ -435,40 +429,10 @@ void DXTConverter::getMinMaxColors_BoundingBox(uint8* block, uint8* minColor, ui
 // for G, we do the samething for 6 bits
 // so if we have 111001, we have 111001_11
 
+/*
 void DXTConverter::build4ColorPalette(uint8* colorPalette, const uint8* minColor, const uint8* maxColor)
 {
-	// the order here doesn't matter, cuz we will be comparing each color in the colorBlock
-	// with each color in the palette
-	/*
-	for (int i = 0; i < 4; i++)
-	{
-		if (i == 0)
-		{
-			colorPalette[0 + i] = 255;
-			colorPalette[4 + i] = 255;
-			colorPalette[8 + i] = 255;
-			colorPalette[12 + i] = 255;
-		}
-		else
-		{
-			if (i == 2)
-			{
-				colorPalette[0 + i] = (maxColor[i] & C565_6_MASK) | (maxColor[i] >> 6);
-				colorPalette[4 + i] = (minColor[i] & C565_6_MASK) | (minColor[i] >> 6);
-			}
-			else
-			{
-				colorPalette[0 + i] = (maxColor[i] & C565_5_MASK) | (maxColor[i] >> 5);
-				colorPalette[4 + i] = (minColor[i] & C565_5_MASK) | (minColor[i] >> 5);
-			}
-
-			// interpolate the other two points 
-			colorPalette[8 + i] = (2 * colorPalette[i] + 1 * colorPalette[4 + i]) / 3;
-			colorPalette[12 + i] = (1 * colorPalette[i] + 2 * colorPalette[4 + i]) / 3;
-		}
-	}
-	*/
-
+		
 	for (int i = 0; i < 4; i++)
 	{
 		if (i == 3)
@@ -480,6 +444,7 @@ void DXTConverter::build4ColorPalette(uint8* colorPalette, const uint8* minColor
 		}
 		else
 		{
+			
 			if (i == 1)
 			{
 				colorPalette[0 + i] = (maxColor[i] & C565_6_MASK) | (maxColor[i] >> 6);
@@ -490,12 +455,69 @@ void DXTConverter::build4ColorPalette(uint8* colorPalette, const uint8* minColor
 				colorPalette[0 + i] = (maxColor[i] & C565_5_MASK) | (maxColor[i] >> 5);
 				colorPalette[4 + i] = (minColor[i] & C565_5_MASK) | (minColor[i] >> 5);
 			}
+			
 
 			// interpolate the other two points 
 			colorPalette[8 + i] = (2 * colorPalette[i] + 1 * colorPalette[4 + i]) / 3;
 			colorPalette[12 + i] = (1 * colorPalette[i] + 2 * colorPalette[4 + i]) / 3;
 		}
+	}	
+}
+*/
+
+void DXTConverter::build4ColorPalette(uint8 colorPalette[][4], const uint8* minColor, const uint8* maxColor)
+{
+	// the order here doesn't matter, cuz we will be comparing each color in the colorBlock
+	// with each color in the palette
+
+	/*
+	colorPalette[0][0] = (maxColor[0] & C565_5_MASK) | (maxColor[0] >> 5);
+	colorPalette[0][1] = (maxColor[1] & C565_6_MASK) | (maxColor[1] >> 6);
+	colorPalette[0][2] = (maxColor[2] & C565_5_MASK) | (maxColor[2] >> 5);
+	colorPalette[1][0] = (minColor[0] & C565_5_MASK) | (minColor[0] >> 5);
+	colorPalette[1][1] = (minColor[1] & C565_6_MASK) | (minColor[1] >> 6);
+	colorPalette[1][2] = (minColor[2] & C565_5_MASK) | (minColor[2] >> 5);
+	colorPalette[2][0] = (2 * colorPalette[0][0] + 1 * colorPalette[1][0]) / 3;
+	colorPalette[2][1] = (2 * colorPalette[0][1] + 1 * colorPalette[1][1]) / 3;
+	colorPalette[2][2] = (2 * colorPalette[0][2] + 1 * colorPalette[1][2]) / 3;
+	colorPalette[3][0] = (1 * colorPalette[0][0] + 2 * colorPalette[1][0]) / 3;
+	colorPalette[3][1] = (1 * colorPalette[0][1] + 2 * colorPalette[1][1]) / 3;
+	colorPalette[3][2] = (1 * colorPalette[0][2] + 2 * colorPalette[1][2]) / 3;
+	*/
+
+	
+	for (int i = 0; i < 4; i++)
+	{
+		
+		if (i == 3)
+		{
+			colorPalette[0][i] = 255;
+			colorPalette[1][i] = 255;
+			colorPalette[2][i] = 255;
+			colorPalette[3][i] = 255;
+		}
+		else
+		
+		{
+			if (i == 1)
+			{
+				colorPalette[0][i] = (maxColor[i] & C565_6_MASK) | (maxColor[i] >> 6);
+				colorPalette[1][i] = (minColor[i] & C565_6_MASK) | (minColor[i] >> 6);
+			}
+			else
+			{
+				colorPalette[0][i] = (maxColor[i] & C565_5_MASK) | (maxColor[i] >> 5);
+				colorPalette[1][i] = (minColor[i] & C565_5_MASK) | (minColor[i] >> 5);
+			}
+
+
+			// interpolate the other two points 
+			colorPalette[2][i] = (2 * colorPalette[0][i] + 1 * colorPalette[1][i]) / 3;
+			colorPalette[3][i] = (1 * colorPalette[0][i] + 2 * colorPalette[1][i]) / 3;
+		}
 	}
+	
+
 
 }
 
@@ -520,9 +542,9 @@ void DXTConverter::build4ColorPalette(uint8* colorPalette, const uint8* minColor
 // hence a 8:1 compression ratio
 uint32 DXTConverter::getCompressedIndices(const uint8* block4x4, const uint8* minColor, const uint8* maxColor)
 {
-
 	// we are getting four points
-	uint8 colorPalette[4 * 4];
+//	uint8 colorPalette[4 * 4];
+	uint8 colorPalette[4][4];
 	build4ColorPalette(colorPalette, minColor, maxColor);
 
 	// this is the indices into the palette;
@@ -535,7 +557,8 @@ uint32 DXTConverter::getCompressedIndices(const uint8* block4x4, const uint8* mi
 		// we compare with all the colors in the palette
 		for (int j = 0; j < 4; j++)
 		{
-			unsigned int dist = getColorDistance(&block4x4[i * 4], &colorPalette[j * 4]);
+//			unsigned int dist = getColorDistance(&block4x4[i * 4], &colorPalette[j * 4]);
+			unsigned int dist = getColorDistance(&block4x4[i * 4], &colorPalette[j][0]);
 
 			if (dist < minDistance)
 			{
@@ -545,13 +568,21 @@ uint32 DXTConverter::getCompressedIndices(const uint8* block4x4, const uint8* mi
 		}
 	}
 
+
+	vector<int> list;
+
 	uint32 result = 0;
 	for (unsigned int i = 0; i < 16; i++)
 	{
 	//	cout << indices[i] << " ";
 		unsigned int numBitsToShift = i << 1;  // multiply by 2
 		result |= (indices[i] << numBitsToShift);
+
+		list.push_back(indices[i]);
 	}
+
+	debugIndicies.push_back(list);
+
 	// cout << endl;
 	return result;
 }
@@ -586,9 +617,7 @@ void DXTConverter::decompress(const uint8* compressedImagePixels, uint8* outputI
 			readCompressed4x4Block(compressedImagePixels, compressedBlock, startIndex, x, y);
 			decompressDXTBlock(compressedBlock, outputImagePixels, x, y, width, height);			
 		}
-	}	
-	reverse(outputImagePixels, width, height);
-
+	}
 }
 
 
@@ -626,10 +655,8 @@ void DXTConverter::compareDM()
 
 void DXTConverter::decompressDXTBlock(uint8* DXTBlock, uint8* outputImagePixels, int bx, int by, int width, int height)
 {
-
-
 	// we are getting four points
-	uint8 colorPalette[4 * 4];
+	uint8 colorPalette[4][4];
 	uint8 maxColor[4];
 	uint8 minColor[4];
 
@@ -665,6 +692,18 @@ void DXTConverter::decompressDXTBlock(uint8* DXTBlock, uint8* outputImagePixels,
 	uint32 compressedIndices = readUint32();
 	decompressIndices(compressedIndices, indices);
 
+	/*
+	int debugListIndex = (by * width / 4) + bx;
+
+	for (int i = 0; i < 16; i++)
+	{
+		if (debugIndicies[debugListIndex][i] != indices[i])
+		{
+			cout << "WRONG INDICES !!!!!!!!!!!!!" << endl;
+		}
+	}
+	*/
+
 	recreateImagePixels(colorPalette, indices, bx, by, width, height, outputImagePixels);
 }
 
@@ -692,15 +731,17 @@ uint16 DXTConverter::readUint16()
 }
 
 
+
 uint32 DXTConverter::readUint32()
 {	
-
+	
 	uint32 result = 0;
 	result = (m_internalPtr[0]) | (m_internalPtr[1] << 8) | (m_internalPtr[2] << 16) | (m_internalPtr[3] << 24);
 
 	m_internalPtr += 4;
 	return result;
-
+	
+	
 	/*
 	uint32 result = 0;
 	result = (m_internalPtr[0] << 24) | (m_internalPtr[1] << 16) | (m_internalPtr[2] << 8) | (m_internalPtr[3]);
@@ -708,6 +749,7 @@ uint32 DXTConverter::readUint32()
 	m_internalPtr += 4;
 	return result;
 	*/
+	
 }
 
 void DXTConverter::decompressIndices(uint32 compressedIndices, unsigned int* indices)
@@ -742,7 +784,19 @@ int DXTConverter::blockIndex2PixelStart(int width, int bx, int by, int localBloc
 	py += localBlockY;
 	px += localBlockX;
 
-	return py * width * 4 + px * 4;
+	return (py * width + px) * 4;
+}
+
+
+int DXTConverter::blockIndex2PixelStart2(int width, int bx, int by, int localBlockX, int localBlockY)
+{
+	int px = bx * 4;
+	int py = by * 4;
+
+	py += localBlockY;
+	px += localBlockX;
+
+	return (py * width + px) * 4;
 }
 
 
@@ -766,6 +820,7 @@ void DXTConverter::setImageColor(uint8* image, int pixelStart, uint8* color)
 	image[pixelStart + 3] = color[3];
 }
 
+/*
 void DXTConverter::recreateImagePixels(uint8* colorPalette, unsigned int* indices, int bx, int by, int width, int height, uint8* outputImagePixels)
 {
 	int numBlocksX = width / 4;
@@ -778,9 +833,48 @@ void DXTConverter::recreateImagePixels(uint8* colorPalette, unsigned int* indice
 		{
 			int colorIndex = indices[y * 4 + x];
 			int pixelStart = blockIndex2PixelStart(width, bx, by, x, y);
-			setImageColor(outputImagePixels, pixelStart, &colorPalette[colorIndex]);
+			setImageColor(outputImagePixels, pixelStart, &colorPalette[colorIndex * 4]);
 		}
 	}
+}
+*/
+
+void DXTConverter::recreateImagePixels(uint8 colorPalette[][4], unsigned int* indices, int bx, int by, int width, int height, uint8* outputImagePixels)
+{
+	int numBlocksX = width / 4;
+	int numBlocksY = height / 4;
+
+	for (int y = 0; y < 4; y++)
+	{
+		
+		for (int x = 0; x < 4; x++)
+		{
+			int colorIndex = indices[y * 4 + x];
+			int pixelStart = blockIndex2PixelStart(width, bx, by, x, y);
+			setImageColor(outputImagePixels, pixelStart, &colorPalette[colorIndex][0]);
+		}
+
+		/*
+		else if (y == 1)
+		{
+			for (int x = 0; x < 4; x++)
+			{
+				int colorIndex = indices[y * 4 + x];
+				int pixelStart = blockIndex2PixelStart2(width, bx, by, x, y);
+
+				int px = bx * 4;
+				int py = by * 4;
+
+				py += y;
+				px += x;
+
+
+				cout << "px " << px << ", py " << py << " " << pixelStart << endl;
+			}
+		}
+		*/
+	}
+
 }
 
 
