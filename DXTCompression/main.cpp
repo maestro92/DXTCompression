@@ -144,11 +144,6 @@ void printImage(uint8* image, int w, int h)
 		{
 			int ps = DXTConverter::pixelIndex2PixelStart(w, x, y);
 			DXTConverter::printPixel(image, ps);
-		//	int index = (y * w + x) * 4;
-		//	uint8* ptr = image;
-
-		//	cout << (int)(ptr[index + 0]) << " " << (int)(ptr[index + 1]) << " " << (int)(ptr[index + 2]) << " " << (int)(ptr[index + 3]) << ",	";
-
 			if (x >= 8)
 			{
 				break;
@@ -202,14 +197,6 @@ void SetImageFullAlpha(uint8* pixels, int width, int height)
 			ptr[ps + 1] = pixels[ps + 1];
 			ptr[ps + 2] = pixels[ps + 2];
 			ptr[ps + 3] = pixels[ps + 3];			
-			
-
-			/*
-			ptr[ps] = pixels[ps + 3];
-			ptr[ps + 1] = pixels[ps + 2];
-			ptr[ps + 2] = pixels[ps + 1];
-			ptr[ps + 3] = pixels[ps];
-			*/
 		}
 	}
 
@@ -311,33 +298,8 @@ void testDXTConveterReadAndWrite(uint8* src, int width, int height)
 
 
 
-void testDXTConverterGetBlock(uint8* src, int width, int height)
-{
-	DXTConverter dxtConverter;
 
-	uint8* rgbPixels = new uint8[width * height * 4];
-	uint8 block4x4[64];
-	dxtConverter.Copy(src, rgbPixels, width, height);
-
-	createImage("testCopy.bmp", rgbPixels, width, height);
-
-	uint8* newImageBuffer = new uint8[width * height * 4];
-
-	int numBlocksX = width / 4;
-	int numBlocksY = height / 4;
-
-	for (int by = 0; by < numBlocksY; by++)
-	{
-		for (int bx = 0; bx < numBlocksX; bx++)
-		{
-			dxtConverter.get4x4Block(rgbPixels, width, bx, by, block4x4);
-		}
-	}
-}
-
-
-
-void testIndicies(int width, int height)
+void testIndices(int width, int height)
 {
 	SDL_Surface *image;
 	Uint32 rmask, gmask, bmask, amask;
@@ -402,6 +364,8 @@ void testIndicies(int width, int height)
 
 
 
+
+
 int main(int argc, char *argv[])
 {
 	SDL_Surface* screen;
@@ -432,9 +396,9 @@ int main(int argc, char *argv[])
 	
 	DXTConverter dxtConverter;
 	
-	dxtConverter.compressImageDXT1((uint8*)image0->pixels, (uint8*)compressedImage0Pixels, image0->w, image0->h, outputBytes);
+	dxtConverter.compressDXT1((uint8*)image0->pixels, (uint8*)compressedImage0Pixels, image0->w, image0->h);
 	std::fstream writeFile;
-	writeFile = std::fstream("compressedLena.binary", std::ios::out | std::ios::binary);
+	writeFile = std::fstream("dxt1_Lena.bin", std::ios::out | std::ios::binary);
 	writeFile.write((char*)compressedImage0Pixels, numCompressedBytes);
 	writeFile.close();
 	
@@ -443,7 +407,7 @@ int main(int argc, char *argv[])
 
 	streampos size;
 	char* compressedImageBinaryData = NULL;
-	ifstream readFile("compressedLena.binary", ios::in | ios::binary | ios::ate);
+	ifstream readFile("dxt1_Lena.bin", ios::in | ios::binary | ios::ate);
 	if (readFile.is_open())
 	{
 		size = readFile.tellg();
@@ -458,7 +422,7 @@ int main(int argc, char *argv[])
 	memset(newImage0Pixels, 0, numBytes);
 	cout << "numBytes " << numBytes << endl;
 //	dxtConverter.decompress(compressedImage0Pixels, newImage0Pixels, image0->w, image0->h);
-	dxtConverter.decompress((uint8*)compressedImageBinaryData, newImage0Pixels, image0->w, image0->h);
+	dxtConverter.decompressDXT1((uint8*)compressedImageBinaryData, newImage0Pixels, image0->w, image0->h);
 
 	createImage("new_decompress.bmp", newImage0Pixels, image0->w, image0->h);	
 	cout << "Done Creating Image" << endl;
