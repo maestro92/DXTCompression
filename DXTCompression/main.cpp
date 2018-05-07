@@ -21,10 +21,6 @@ using namespace std;
 
 
 
-
-
-
-
 SDL_Surface* createTestImage()
 {
 	const int sprite_size = 8;
@@ -135,11 +131,6 @@ void createImage(string filename, uint8* pixels, int width, int height)
 }
 
 
-
-
-
-
-
 void printImage(uint8* image, int w, int h)
 {
 	for (int y = 0; y < h; y++)
@@ -235,7 +226,7 @@ void testWriteAndReadUint16(uint8* src, int width, int height)
 
 
 	DXTConverter dxtConverter;
-	dxtConverter.m_internalPtr = writeBuffer;
+	dxtConverter.setWriteBufferStart(writeBuffer);
 
 	for (int y = 0; y < height; y++)
 	{
@@ -254,7 +245,7 @@ void testWriteAndReadUint16(uint8* src, int width, int height)
 
 	uint8* newImageBuffer = new uint8[width * height * 4];
 
-	dxtConverter.m_internalPtr = writeBuffer;
+	dxtConverter.setWriteBufferStart(writeBuffer);
 	for (int y = 0; y < height; y++)
 	{
 		for (int x = 0; x < width; x++)
@@ -284,7 +275,7 @@ void testWriteAndReadUint32(uint8* src, int width, int height)
 
 
 	DXTConverter dxtConverter;
-	dxtConverter.m_internalPtr = writeBuffer;
+	dxtConverter.setWriteBufferStart(writeBuffer);
 
 	for (int y = 0; y < height; y++)
 	{
@@ -298,7 +289,7 @@ void testWriteAndReadUint32(uint8* src, int width, int height)
 
 	uint8* newImageBuffer = new uint8[width * height * 4];
 
-	dxtConverter.m_internalPtr = writeBuffer;
+	dxtConverter.setWriteBufferStart(writeBuffer);
 	for (int y = 0; y < height; y++)
 	{
 		for (int x = 0; x < width; x++)
@@ -310,7 +301,6 @@ void testWriteAndReadUint32(uint8* src, int width, int height)
 
 
 	createImage("testUint32.bmp", newImageBuffer, width, height);
-
 }
 
 void testDXTConveterReadAndWrite(uint8* src, int width, int height)
@@ -381,8 +371,7 @@ void testIndicies(int width, int height)
 	for (int y = 0; y < height; y++)
 	{
 		for (int x = 0; x < width; x++)
-		{
-		
+		{		
 			if (y % 4 == 0)
 			{
 				int ps = DXTConverter::pixelIndex2PixelStart(width, x, y);
@@ -471,90 +460,15 @@ int main(int argc, char *argv[])
 //	dxtConverter.decompress(compressedImage0Pixels, newImage0Pixels, image0->w, image0->h);
 	dxtConverter.decompress((uint8*)compressedImageBinaryData, newImage0Pixels, image0->w, image0->h);
 
-
-
-
-
-
-	createImage("new_decompress.bmp", newImage0Pixels, image0->w, image0->h);
-	
-
+	createImage("new_decompress.bmp", newImage0Pixels, image0->w, image0->h);	
 	cout << "Done Creating Image" << endl;
-
 	while (1)
-	{
-	}
-//	
-
-	//Apply image to screen
-	SDL_BlitSurface(image0, NULL, screen, NULL);
-	
-	//Update Screen
-	SDL_Flip(screen);
-
-	//Pause
-	SDL_Delay(2000);
-
-	
-
-	SDL_LockSurface(screen);
-
-	SDL_UnlockSurface(screen);
-
-
-	/*
-	//...
-	png::image< png::rgb_pixel > image(128, 128);
-	for (size_t y = 0; y < image.get_height(); ++y)
-	{
-		for (size_t x = 0; x < image.get_width(); ++x)
-		{
-			image[y][x] = png::rgb_pixel(x, y, x + y);
-			// non-checking equivalent of image.set_pixel(x, y, ...);
-		}
-	}
-	image.write("rgb.png");
-	*/
+	{}
 	return 0;
 }
 
 
 
-
-
-
-
-
-
-/*
-void RotateAndSaveImg(string filename) {
-	const int sprite_size = 200;
-
-	SDL_Surface *surface;
-	Uint32 rmask, gmask, bmask, amask;
-#if SDL_BYTEORDER == SDL_BIG_ENDIAN
-	rmask = 0xffffffff;
-	gmask = 0xffffffff;
-	bmask = 0xffffffff;
-	amask = 0xffffffff;
-#else
-	rmask = 0xffffffff;
-	gmask = 0xffffffff;
-	bmask = 0xffffffff;
-	amask = 0xffffffff;
-#endif
-
-	surface = SDL_CreateRGBSurface(0, sprite_size, sprite_size, 32,
-		rmask, gmask, bmask, amask);
-	if (surface == NULL) {
-		cout << SDL_GetError() << endl;
-		exit(1);
-	}
-
-
-	SDL_SaveBMP(surface, filename.c_str());
-}
-*/
 
 
 

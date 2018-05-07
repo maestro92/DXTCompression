@@ -6,13 +6,6 @@ using namespace std;
 
 class DXTConverter
 {
-
-	struct Coord
-	{
-		int x;
-		int y;
-	};
-
 	struct MemoryDebugStruct
 	{
 		int bx;
@@ -44,14 +37,9 @@ class DXTConverter
 						cout << (int)(other.data[j]) << " ";
 					}
 					cout << endl;
-
-
-
-					
 					return false;
 				}
 			}
-
 			return true;
 		}
 	};
@@ -86,12 +74,6 @@ class DXTConverter
 		void decompress(const uint8* sourceImagePixels, uint8* outputImagePixels, int width, int height);
 		void decompressDXTBlock(uint8* DXTBlock, uint8* outputImagePixels, int bx, int by, int width, int height);
 
-
-
-		void recreateBlock(uint8* colorPalette, unsigned int* indices, int bx, int by, int width, int height, uint8* outputImagePixels);
-
-
-
 		void printBlock(uint8* block);
 		static void printColor(uint8* color);
 		static void printPixel(uint8* image, int pixelStart);
@@ -99,20 +81,13 @@ class DXTConverter
 		static int blockIndex2PixelStart(int width, int bx, int by, int localBlockX, int localBlockY);
 		static int blockIndex2PixelStart2(int width, int bx, int by, int localBlockX, int localBlockY);
 
-		void setImageColor(uint8* image, Coord coord, uint8* color);
-		void setImageColor(uint8* image, int width, Coord coord, uint8* color);
-
-		void setImageColorByPixelIndex(uint8* image, int px, int py, uint8* color);
-
 		void setImageColor(uint8* image, int pixelStart, uint8* color);
 		void AddToDebugMemoryString(uint8* ptr, int bx, int by, vector<MemoryDebugStruct>& dm);
-
 		void compareDM();
 
-		void testReadAndWrite(uint8* src, uint8* dst);
+		void setWriteBufferStart(uint8* writeBuffer);
 
 
-//private:
 		// assuming little endian
 		void writeUint16(uint16 value);
 		// http://www.includehelp.com/c-programs/extract-bytes-from-int.aspx
@@ -121,17 +96,14 @@ class DXTConverter
 		// so why do we need the 0xFF mask?
 		void writeUint32(uint32 value);
 
+		uint16 readUint16();
+		uint32 readUint32();
+
+	private:
 //		void readCompressed4x4Block(const uint8* sourceImageStart, uint8* outputBlock);
 		void readCompressed4x4Block(const uint8* sourceImageStart, uint8* outputBlock, int startIndex, int x, int y);
 		void printDXTImage(const uint8* dxtImage, int numBlocksX, int numBlocksY);
 		void printDXTBlock(const uint8* block);
-		//	void readColor(uint8* color);
-	//	void readIndices(uint8* color);
-
-		uint16 readUint16();
-		uint32 readUint32();
-
-
 		uint8* m_internalPtr;
 
 		vector<MemoryDebugStruct> debugMemory;
