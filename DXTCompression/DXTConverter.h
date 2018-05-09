@@ -67,11 +67,18 @@ class DXTConverter
 		void buildAlphaPalette(uint8* alphaPalette, const uint8 minAlpha, const uint8 maxAlpha);
 		
 	//	void recreateImagePixels(uint8* colorPalette, unsigned int* indices, int bx, int by, int width, int height, uint8* outputImagePixels);
-		void recreateBlockInImage(uint8 colorPalette[][4], unsigned int* indices, int bx, int by, int width, int height, uint8* outputImagePixels);
+		void recreateBlockInImageDXT1(uint8 colorPalette[][4], unsigned int* indices, 
+			int bx, int by, int width, int height, uint8* outputImagePixels);
+		
+		void recreateBlockInImageDXT5(uint8 colorPalette[][4], unsigned int* indices,
+			uint8* alphaPalette, uint8* alphaIndices,
+			int bx, int by, int width, int height, uint8* outputImagePixels);
+
 		void writeCompressedAlphaIndices(const uint8* colorBlock, const uint8 minAlpha, const uint8 maxAlpha);
 		void writeCompressedIndices(const uint8* colorBlock, const uint8* minColor, const uint8* maxColor);
 
 		void decompressIndices(uint32 compressedIndices, unsigned int* indices);
+		void decompressAlphaIndices(uint8* alphaIndices, unsigned int* indices);
 
 		void DebugColor(uint8* color);
 		void DebugColor565(uint16 color);
@@ -111,6 +118,7 @@ class DXTConverter
 		uint8 readUint8();
 		uint16 readUint16();
 		uint32 readUint32();
+		void readAndDecompresseAlphaIndices(uint8* alphaIndices);
 
 	private:
 		void printDXTImage(const uint8* dxtImage, int numBlocksX, int numBlocksY);
@@ -120,8 +128,8 @@ class DXTConverter
 		vector<MemoryDebugStruct> debugMemory;
 		vector<MemoryDebugStruct> debugMemory2;
 
-		vector< vector<int> > debugIndicies;
-
+		vector< vector<int> > debugIndices;
+		vector< vector<int> > debugAlphaIndices;
 };
 
 
