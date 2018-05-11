@@ -23,6 +23,8 @@ http://blog.wolfire.com/2009/01/dxtc-texture-compression/
 this explains how to do DXT1 with 1 bit alpha channel
 https://msdn.microsoft.com/en-us/library/windows/desktop/bb147243(v=vs.85).aspx
 
+
+used to reduce the amount of GPU memory required for textures
 */
 using namespace std;
 // http://stackoverflow.com/questions/4845410/error-lnk2019-unresolved-external-symbol-main-referenced-in-function-tmainc
@@ -485,9 +487,10 @@ void runDXT1(string img)
 	}
 	cout << core << endl;
 
-
+	// original image
 	string image0Name = img;
 	SDL_Surface* image0 = utl::loadSDLImage(inputPath + image0Name);
+	createPNGImage(outputPath + image0Name, (uint8*)(image0->pixels), image0->w, image0->h);
 
 	// assuming 8:1 compression ratio
 	int numBytes = image0->w * image0->h * 4;
@@ -543,11 +546,12 @@ void runDXT3(string img)
 
 	string image0Name = img;
 	SDL_Surface* image0 = utl::loadSDLImage(inputPath + image0Name);
+	createPNGImage(outputPath + image0Name, (uint8*)(image0->pixels), image0->w, image0->h);
+
 
 	// assuming 4:1 compression ratio
 	int numBytes = image0->w * image0->h * 4;
-//	int numCompressedBytes = numBytes / 4;
-	int numCompressedBytes = numBytes / 2;
+	int numCompressedBytes = numBytes / 4;
 	uint8* compressedImage0Pixels = new uint8[numCompressedBytes];
 	memset(compressedImage0Pixels, 0, numCompressedBytes);
 
@@ -571,7 +575,7 @@ void runDXT3(string img)
 
 	uint8* newImage0Pixels = new uint8[numBytes];
 	memset(newImage0Pixels, 0, numBytes);
-	dxtConverter.decompressDXT3((uint8*)compressedImageBinaryData, newImage0Pixels, image0->w, image0->h, (uint8*)image0->pixels);
+	dxtConverter.decompressDXT3((uint8*)compressedImageBinaryData, newImage0Pixels, image0->w, image0->h);
 
 	string decompressFileName = core + "_dxt3_decompress.png";
 	string decompressFilePath = outputPath + decompressFileName;
@@ -593,6 +597,7 @@ void runDXT5(string img)
 
 	string image0Name = img;
 	SDL_Surface* image0 = utl::loadSDLImage(inputPath + image0Name);
+	createPNGImage(outputPath + image0Name, (uint8*)(image0->pixels), image0->w, image0->h);
 
 	// assuming 4:1 compression ratio
 	int numBytes = image0->w * image0->h * 4;
@@ -605,11 +610,7 @@ void runDXT5(string img)
 
 
 	DXTConverter dxtConverter;
-	dxtConverter.debugWrite = debugPixels;
-
 	dxtConverter.compressDXT5((uint8*)image0->pixels, (uint8*)compressedImage0Pixels, image0->w, image0->h);
-
-	createPNGImage("inputCompressDXT5.png", dxtConverter.debugWrite, image0->w, image0->h);
 
 
 
@@ -628,7 +629,6 @@ void runDXT5(string img)
 		readFile.close();
 	}
 
-	dxtConverter.debugOriginal = (uint8*)image0->pixels;
 
 	uint8* newImage0Pixels = new uint8[numBytes];
 	memset(newImage0Pixels, 0, numBytes);
@@ -690,6 +690,8 @@ int main(int argc, char *argv[])
 	utl::initSDL(SCREEN_WIDTH, SCREEN_HEIGHT, screen);
 	
 //	TestGetAlphaBYBlock("smoke.png");
+
+	runDXT1("lena.png");
 	runDXT3("smoke.png");
 	runDXT5("smoke.png");
 	/*

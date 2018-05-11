@@ -50,12 +50,6 @@ class DXTConverter
 		void compressDXT3(const uint8* srcImgPixels, uint8* dstImgPixels, int w, int h);
 		void compressDXT5(const uint8* srcImgPixels, uint8* dstImgPixels, int w, int h);
 
-		/*
-		void DebugCompressTest(const uint8* srcImgPixels, uint8* dstImgPixels, uint8* outputImgePixels, int w, int h);
-		void DebugDecompressTest(const uint8* compressedImagePixels, uint8* outputImagePixels, int width, int height);
-		void decompressDebugAlphaBlock(uint8* compressedBlock, uint8* outputImagePixels, int bx, int by, int w, int h);
-		*/
-
 		int getColorDistance(const uint8* color0, const uint8* color1);
 		uint16 color888to565(const uint8* color);
 		void color565to888(uint16 color, uint8* outputColor);
@@ -66,50 +60,39 @@ class DXTConverter
 		void getMinMaxColors_BoundingBox(uint8* block, uint8* minColor, uint8* maxColor);
 		void getMinMaxColorsDXT5_BoundingBox(uint8* block, uint8* minColor, uint8* maxColor);
 
-	//	void build4ColorPalette(uint8* colorPalette, const uint8* minColor, const uint8* maxColor);
 		void build4ColorPalette(uint8 colorPalette[][4], const uint8* minColor, const uint8* maxColor);
 		void buildAlphaPalette(uint8* alphaPalette, const uint8 minAlpha, const uint8 maxAlpha);
 		
-	//	void recreateImagePixels(uint8* colorPalette, unsigned int* indices, int bx, int by, int width, int height, uint8* outputImagePixels);
 		void recreateBlockInImageDXT1(uint8 colorPalette[][4], unsigned int* indices, 
-			int bx, int by, int width, int height, uint8* outputImagePixels);
-		
+			int bx, int by, int width, int height, uint8* outputImagePixels);		
+
 		void recreateBlockInImageDXT3(uint8 colorPalette[][4], unsigned int* indices,
-			uint8* alphaValues, int bx, int by, int width, int height, uint8* outputImagePixels, uint8* original);
-		/*
+			uint8* alphaValues, int bx, int by, int width, int height, uint8* outputImagePixels);
+
 		void recreateBlockInImageDXT5(uint8 colorPalette[][4], unsigned int* indices,
 			uint8* alphaPalette, uint8* alphaIndices,
 			int bx, int by, int width, int height, uint8* outputImagePixels);
-			*/
-		void recreateBlockInImageDXT5(uint8 colorPalette[][4], unsigned int* indices,
-			uint8* alphaPalette, uint8* alphaIndices,
-			int bx, int by, int width, int height, uint8* outputImagePixels, uint8* original);
 
 		void writeCompressedIndices(const uint8* colorBlock, const uint8* minColor, const uint8* maxColor);
 		void writeDXT3AlphaBits(const uint8* colorBlock);
-//		void writeDXT3AlphaBits(const uint8* colorBlock, int bx, int by);
 		void writeCompressedAlphaIndices(const uint8* colorBlock, const uint8 minAlpha, const uint8 maxAlpha);
 
 
 		void decompressIndices(uint32 compressedIndices, unsigned int* indices);
-//		void decompressAlphaIndices(uint8* alphaIndices, unsigned int* indices);
 
-		void DebugColor(uint8* color);
-		void DebugColor565(uint16 color);
 		
 		// http://www.matejtomcik.com/Public/KnowHow/DXTDecompression/
 		void decompressDXT1(const uint8* compressedImagePixels, uint8* dstImgPixels, int width, int height);
 		void decompressDXT1Block(uint8* DXTBlock, uint8* outputImagePixels, int bx, int by, int width, int height);
 
-		void decompressDXT3(const uint8* compressedImagePixels, uint8* dstImgPixels, int width, int height, uint8* original);
-		void decompressDXT3Block(uint8* DXTBlock, uint8* outputImagePixels, int bx, int by, int width, int height, uint8* original);
+		void decompressDXT3(const uint8* compressedImagePixels, uint8* dstImgPixels, int width, int height);
+		void decompressDXT3Block(uint8* DXTBlock, uint8* outputImagePixels, int bx, int by, int width, int height);
 
 		void decompressDXT5(const uint8* compressedImagePixels, uint8* dstImgPixels, int width, int height);
 		void decompressDXT5Block(uint8* DXTBlock, uint8* outputImagePixels, int bx, int by, int width, int height);
 
 
 		void readDXT3AlphaBits(uint8* alphaValues);
-//		void readDXT3AlphaBits(uint8* alphaValues, int bx, int by);
 
 		void printBlock(uint8* block);
 		static void printColor(uint8* color);
@@ -118,8 +101,7 @@ class DXTConverter
 		static int blockIndex2PixelStart(int width, int bx, int by, int localBlockX, int localBlockY);
 
 		void setImagePixelColor(uint8* image, int pixelStart, uint8* color);
-		void AddToDebugMemoryString(uint8* ptr, int bx, int by, vector<MemoryDebugStruct>& dm);
-		void compareDM();
+
 
 		void setWriteBufferStart(uint8* writeBuffer);
 
@@ -138,18 +120,18 @@ class DXTConverter
 		uint32 readUint32();
 		void readAndDecompresseAlphaIndices(uint8* alphaIndices);
 
-		uint8* debugOriginal;
-		uint8* debugWrite;
-
-		int debugGlobalBx;
-		int debugGlobalBy;
-		int debugNumPixelX;
-		int debugWidth;
 
 	private:
 		void printDXTImage(const uint8* dxtImage, int numBlocksX, int numBlocksY);
 		void printDXTBlock(const uint8* block);
 		void printBytes(const uint8* block, int numBytes);
+
+		void AddToDebugMemoryString(uint8* ptr, int bx, int by, vector<MemoryDebugStruct>& dm);
+		void compareDM();
+
+		void DebugColor(uint8* color);
+		void DebugColor565(uint16 color);
+
 		uint8* m_internalPtr;
 
 		vector<MemoryDebugStruct> debugMemory;
@@ -159,6 +141,16 @@ class DXTConverter
 		vector< vector<int> > debugAlphaIndices;
 
 		vector< vector<uint32> > debugDXT3AlphaValues;
+
+		/*
+		uint8* debugOriginal;
+		uint8* debugWrite;
+
+		int debugGlobalBx;
+		int debugGlobalBy;
+		int debugNumPixelX;
+		int debugWidth;
+		*/
 };
 
 
