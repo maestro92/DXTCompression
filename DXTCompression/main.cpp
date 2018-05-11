@@ -3,7 +3,7 @@
 #include "define.h"
 #include "utility_sdl.h"
 #include "DXTConverter.h"
-#include <png.h>
+#include <png++/png.hpp>
 /* 
 links
 http://sjbrown.co.uk/2006/01/19/dxt-compression-techniques/
@@ -29,7 +29,8 @@ using namespace std;
 #undef main
 
 
-
+string inputPath = "testImages/srcFolder/";
+string outputPath = "testImages/myOutput/";
 
 SDL_Surface* createTestImage()
 {
@@ -80,9 +81,6 @@ SDL_Surface* createTestImage()
 	}
 
 	SDL_SaveBMP(surface, "test.bmp");
-
-
-
 	return surface;
 }
 
@@ -140,7 +138,21 @@ void createImage(string filename, uint8* pixels, int width, int height)
 	SDL_SaveBMP(image, filename.c_str());
 }
 
+void createPNGImage(string filename, uint8* pixels, int width, int height)
+{
+	png::image< png::rgba_pixel > image(width, height);
 
+	for (int y = 0; y < image.get_height(); ++y)
+	{
+		for (int x = 0; x < image.get_width(); ++x)
+		{
+			int ps = DXTConverter::pixelIndex2PixelStart(width, x, y);
+			image[y][x] = png::rgba_pixel(pixels[ps+0], pixels[ps+1], pixels[ps+2], pixels[ps+3]);
+		}
+	}
+
+	image.write(filename);
+}
 
 void copyImageAlphaChannel(string filename, uint8* pixels, int width, int height)
 {
@@ -172,10 +184,10 @@ void copyImageAlphaChannel(string filename, uint8* pixels, int width, int height
 		{
 			int ps = DXTConverter::pixelIndex2PixelStart(width, x, y);
 			uint8* ptr = (uint8*)image->pixels;
-			ptr[ps + 0] = pixels[ps + 3];
-			ptr[ps + 1] = pixels[ps + 3];
-			ptr[ps + 2] = pixels[ps + 3];
-			ptr[ps + 3] = 255;
+			ptr[ps + 0] = pixels[ps + 0];
+			ptr[ps + 1] = pixels[ps + 1];
+			ptr[ps + 2] = pixels[ps + 2];
+			ptr[ps + 3] = pixels[ps + 3];
 
 		}
 	}
@@ -186,7 +198,6 @@ void copyImageAlphaChannel(string filename, uint8* pixels, int width, int height
 
 void examineImage(uint8* pixels, int width, int height)
 {
-
 	for (int y = 0; y < height; y++)
 	{
 		for (int x = 0; x < width; x++)
@@ -202,7 +213,6 @@ void examineImage(uint8* pixels, int width, int height)
 			}
 		}
 	}
-
 }
 
 
@@ -438,21 +448,17 @@ void testIndices(int width, int height)
 
 void writeBinFile(string filename, uint8* data, int size)
 {
-	string path = "testImages/";
-	string binFilePath = path + filename;
 	std::fstream writeFile;
-	writeFile = std::fstream(binFilePath.c_str(), std::ios::out | std::ios::binary);
+	writeFile = std::fstream(filename.c_str(), std::ios::out | std::ios::binary);
 	writeFile.write((char*)data, size);
 	writeFile.close();
 }
 
-
+/*
 void readBinFile(string filename, char* data)
 {
 	streampos size;
-	string path = "testImages/";
-	string binFilePath = path + filename;
-	ifstream readFile(binFilePath.c_str(), ios::in | ios::binary | ios::ate);
+	ifstream readFile(filename.c_str(), ios::in | ios::binary | ios::ate);
 	if (readFile.is_open())
 	{
 		size = readFile.tellg();
@@ -461,8 +467,9 @@ void readBinFile(string filename, char* data)
 		readFile.read(data, size);
 		readFile.close();
 	}
-
 }
+*/
+
 
 // DXT1 doesn't work with alpha, cuz you are not compressing the alpha info
 // you are compressiong two 888 to 565
@@ -478,9 +485,9 @@ void runDXT1(string img)
 	}
 	cout << core << endl;
 
-	string path = "testImages/";
+
 	string image0Name = img;
-	SDL_Surface* image0 = utl::loadSDLImage(path + image0Name);
+	SDL_Surface* image0 = utl::loadSDLImage(inputPath + image0Name);
 
 	// assuming 8:1 compression ratio
 	int numBytes = image0->w * image0->h * 4;
@@ -491,16 +498,9 @@ void runDXT1(string img)
 	DXTConverter dxtConverter;
 	dxtConverter.compressDXT1((uint8*)image0->pixels, (uint8*)compressedImage0Pixels, image0->w, image0->h);
 
+	string binFilePath = outputPath + core + "_dxt1.bin";
+	writeBinFile(binFilePath, compressedImage0Pixels, numCompressedBytes);
 
-
-	string binFileName = core + "_dxt1.bin";
-	writeBinFile(binFileName, compressedImage0Pixels, numCompressedBytes);
-
-//	char* compressedImageBinaryData = NULL;
-//	readBinFile(binFileName, compressedImageBinaryData);
-
-	
-	string binFilePath = path + binFileName;
 	streampos size;
 	char* compressedImageBinaryData = NULL;
 	ifstream readFile(binFilePath.c_str(), ios::in | ios::binary | ios::ate);
@@ -519,15 +519,19 @@ void runDXT1(string img)
 	memset(newImage0Pixels, 0, numBytes);
 	dxtConverter.decompressDXT1((uint8*)compressedImageBinaryData, newImage0Pixels, image0->w, image0->h);
 
-	string decompressFileName = core + "_dxt1_decompress.bmp";
-	string decompressFilePath = path + "/" + decompressFileName;
-	createImage(decompressFilePath.c_str(), newImage0Pixels, image0->w, image0->h);
+	string decompressFileName = core + "_dxt1_decompress.png";
+	string decompressFilePath = outputPath + decompressFileName;
+//	createImage(decompressFilePath.c_str(), newImage0Pixels, image0->w, image0->h);
+	createPNGImage(decompressFilePath.c_str(), newImage0Pixels, image0->w, image0->h);
+
 
 	cout << "runDXT1 Done " << endl;
 }
 
 
-void runDXT5(string img)
+
+
+void runDXT3(string img)
 {
 	string core = "";
 
@@ -537,28 +541,22 @@ void runDXT5(string img)
 	}
 	cout << core << endl;
 
-	string path = "testImages/";
 	string image0Name = img;
-	SDL_Surface* image0 = utl::loadSDLImage(path + image0Name);
-
-	string filename = path + core + "_alpha.bmp";
-//	copyImageAlphaChannel(filename, (uint8*)image0->pixels, image0->w, image0->h);
+	SDL_Surface* image0 = utl::loadSDLImage(inputPath + image0Name);
 
 	// assuming 4:1 compression ratio
 	int numBytes = image0->w * image0->h * 4;
-	int numCompressedBytes = numBytes / 4;
+//	int numCompressedBytes = numBytes / 4;
+	int numCompressedBytes = numBytes / 2;
 	uint8* compressedImage0Pixels = new uint8[numCompressedBytes];
 	memset(compressedImage0Pixels, 0, numCompressedBytes);
 
-
 	DXTConverter dxtConverter;
-	dxtConverter.compressDXT5((uint8*)image0->pixels, (uint8*)compressedImage0Pixels, image0->w, image0->h);
+	dxtConverter.compressDXT3((uint8*)image0->pixels, (uint8*)compressedImage0Pixels, image0->w, image0->h);
 
-	string binFileName = core + "_dxt5.bin";
-	writeBinFile(binFileName, compressedImage0Pixels, numCompressedBytes);
+	string binFilePath = outputPath + core + "_dxt3.bin";
+	writeBinFile(binFilePath, compressedImage0Pixels, numCompressedBytes);
 
-
-	string binFilePath = path + binFileName;
 	streampos size;
 	char* compressedImageBinaryData = NULL;
 	ifstream readFile(binFilePath.c_str(), ios::in | ios::binary | ios::ate);
@@ -573,44 +571,134 @@ void runDXT5(string img)
 
 	uint8* newImage0Pixels = new uint8[numBytes];
 	memset(newImage0Pixels, 0, numBytes);
+	dxtConverter.decompressDXT3((uint8*)compressedImageBinaryData, newImage0Pixels, image0->w, image0->h, (uint8*)image0->pixels);
+
+	string decompressFileName = core + "_dxt3_decompress.png";
+	string decompressFilePath = outputPath + decompressFileName;
+	createPNGImage(decompressFilePath.c_str(), newImage0Pixels, image0->w, image0->h);
+
+	cout << "testDXT3 Done " << endl;
+}
+
+
+void runDXT5(string img)
+{
+	string core = "";
+
+	for (int i = 0; i < img.size() - 4; i++)
+	{
+		core += img[i];
+	}
+	cout << core << endl;
+
+	string image0Name = img;
+	SDL_Surface* image0 = utl::loadSDLImage(inputPath + image0Name);
+
+	// assuming 4:1 compression ratio
+	int numBytes = image0->w * image0->h * 4;
+	int numCompressedBytes = numBytes / 4;
+	uint8* compressedImage0Pixels = new uint8[numCompressedBytes];
+	memset(compressedImage0Pixels, 0, numCompressedBytes);
+
+
+	uint8* debugPixels = new uint8[numBytes];
+
+
+	DXTConverter dxtConverter;
+	dxtConverter.debugWrite = debugPixels;
+
+	dxtConverter.compressDXT5((uint8*)image0->pixels, (uint8*)compressedImage0Pixels, image0->w, image0->h);
+
+	createPNGImage("inputCompressDXT5.png", dxtConverter.debugWrite, image0->w, image0->h);
+
+
+
+	string binFilePath = outputPath + core + "_dxt5.bin";
+	writeBinFile(binFilePath, compressedImage0Pixels, numCompressedBytes);
+
+	streampos size;
+	char* compressedImageBinaryData = NULL;
+	ifstream readFile(binFilePath.c_str(), ios::in | ios::binary | ios::ate);
+	if (readFile.is_open())
+	{
+		size = readFile.tellg();
+		compressedImageBinaryData = new char[size];
+		readFile.seekg(0, ios::beg);
+		readFile.read(compressedImageBinaryData, size);
+		readFile.close();
+	}
+
+	dxtConverter.debugOriginal = (uint8*)image0->pixels;
+
+	uint8* newImage0Pixels = new uint8[numBytes];
+	memset(newImage0Pixels, 0, numBytes);
 	dxtConverter.decompressDXT5((uint8*)compressedImageBinaryData, newImage0Pixels, image0->w, image0->h);
 
-	printImage(newImage0Pixels, image0->w, image0->h);
-
-	string decompressFileName = core + "_dxt5_decompress.bmp";
-	string decompressFilePath = path + "/" + decompressFileName;
-	createImage(decompressFilePath.c_str(), newImage0Pixels, image0->w, image0->h);
+	string decompressFileName = core + "_dxt5_decompress.png";
+	string decompressFilePath = outputPath + decompressFileName;
+	createPNGImage(decompressFilePath.c_str(), newImage0Pixels, image0->w, image0->h);
 
 	cout << "testDXT5 Done " << endl;
 }
 
+/*
+
+void TestGetAlphaBYBlock(string img)
+{
+
+	string core = "";
+
+	for (int i = 0; i < img.size() - 4; i++)
+	{
+		core += img[i];
+	}
+	cout << core << endl;
+
+
+	string image0Name = img;
+	SDL_Surface* image0 = utl::loadSDLImage(inputPath + image0Name);
+
+
+	copyImageAlphaChannel("alphaSample.bmp", (uint8*)image0->pixels, image0->w, image0->h);
+
+	// assuming 8:1 compression ratio
+	int numBytes = image0->w * image0->h * 4;
+	int numCompressedBytes = numBytes / 2;
+	uint8* compressedImage0Pixels = new uint8[numCompressedBytes];
+	memset(compressedImage0Pixels, 0, numCompressedBytes);
+
+
+	uint8* newImage0Pixels = new uint8[numBytes];
+	memset(newImage0Pixels, 0, numBytes);
+
+	DXTConverter dxtConverter;
+	dxtConverter.DebugCompressTest((uint8*)image0->pixels, (uint8*)compressedImage0Pixels, newImage0Pixels, image0->w, image0->h);
+	dxtConverter.DebugDecompressTest((uint8*)compressedImage0Pixels, newImage0Pixels, image0->w, image0->h);
+
+	//	createImage(decompressFilePath.c_str(), newImage0Pixels, image0->w, image0->h);
+	createPNGImage("alpha_smokeTest.png", newImage0Pixels, image0->w, image0->h);
+//	copyImageAlphaChannel("alpha_smokeTest.bmp", newImage0Pixels, image0->w, image0->h);
+
+	cout << "runDXT1 Done " << endl;
+}
+*/
 
 
 int main(int argc, char *argv[])
-{
+{	
 	SDL_Surface* screen;
 	utl::initSDL(SCREEN_WIDTH, SCREEN_HEIGHT, screen);
 	
-	
-	string path = "testImages/";
-	string image0Name = "smoke_dxt5_decompress.bmp";
-	SDL_Surface* image0 = utl::loadSDLImage(path + image0Name);
-
-	string newImg = path + "testAlpha.bmp";
-	createImage(newImg, (uint8*)image0->pixels, image0->w, image0->h);
-
-
-	SDL_Surface* image1 = utl::loadSDLImage(newImg);
-	printImage((uint8*)image1->pixels, image1->w, image1->h);
-
-	/*
-	printImage((uint8*)image0->pixels, image0->w, image0->h);
-	*/
-
-	runDXT1("lena.jpg");
-	runDXT1("smoke.png");
+//	TestGetAlphaBYBlock("smoke.png");
+	runDXT3("smoke.png");
 	runDXT5("smoke.png");
+	/*
+	runDXT1("lena.png");
 
+//	runDXT1("smoke.png");
+	runDXT3("smoke.png");
+//	runDXT5("smoke.png");
+	*/
 	while (1)
 	{}
 	return 0;

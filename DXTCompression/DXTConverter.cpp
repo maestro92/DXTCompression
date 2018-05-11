@@ -44,6 +44,42 @@ void DXTConverter::compressDXT1(const uint8* srcImgPixels, uint8* dstImgPixels, 
 }
 
 
+void DXTConverter::compressDXT3(const uint8* srcImgPixels, uint8* dstImgPixels, int w, int h)
+{
+	uint8* rgbPixels = new uint8[w * h * 4];
+	memcpy(rgbPixels, srcImgPixels, w * h * 4);
+
+	// 4x4 pixels, each pixel is 4 bytes, hence 64 bytes
+	uint8 block4x4[64];
+	uint8 minColor[4], maxColor[4];
+
+	m_internalPtr = dstImgPixels;
+
+	// every 4x4 block
+	int numBlocksX = w / 4;
+	int numBlocksY = h / 4;
+
+	for (int by = 0; by < numBlocksY; by++)
+	{
+		for (int bx = 0; bx < numBlocksX; bx++)
+		{
+			get4x4Block(rgbPixels, w, bx, by, block4x4);
+			getMinMaxColors_EuclideanDistance(block4x4, minColor, maxColor);
+//			getMinMaxColors_BoundingBox(block4x4, minColor, maxColor);
+
+			writeDXT3AlphaBits(block4x4);		
+
+			uint16 compressedMaxColor = color888to565(maxColor);
+			uint16 compressedMinColor = color888to565(minColor);
+
+			writeUint16(compressedMaxColor);
+			writeUint16(compressedMinColor);
+			writeCompressedIndices(block4x4, minColor, maxColor);
+		}
+	}
+}
+
+
 void DXTConverter::compressDXT5(const uint8* srcImgPixels, uint8* dstImgPixels, int w, int h)
 {
 	uint8* rgbPixels = new uint8[w * h * 4];
@@ -62,6 +98,11 @@ void DXTConverter::compressDXT5(const uint8* srcImgPixels, uint8* dstImgPixels, 
 	{
 		for (int bx = 0; bx < numBlocksX; bx++)
 		{
+			debugWidth = w;
+			debugGlobalBx = bx;
+			debugGlobalBy = by;
+
+
 			get4x4Block(rgbPixels, w, bx, by, block4x4);
 
 			getMinMaxColorsDXT5_BoundingBox(block4x4, minColor, maxColor);
@@ -90,6 +131,161 @@ void DXTConverter::compressDXT5(const uint8* srcImgPixels, uint8* dstImgPixels, 
 }
 
 
+
+/*
+
+void DXTConverter::DebugCompressTest(const uint8* srcImgPixels, uint8* dstImgPixels, uint8* outputImgePixels, int w, int h)
+{
+	uint8* rgbPixels = new uint8[w * h * 4];
+	memcpy(rgbPixels, srcImgPixels, w * h * 4);
+
+	// 4x4 pixels, each pixel is 4 bytes, hence 64 bytes
+	uint8 block4x4[64];
+	uint8 minColor[4], maxColor[4];
+
+	m_internalPtr = dstImgPixels;
+
+	// every 4x4 block
+	int numBlocksX = w / 4;
+	int numBlocksY = h / 4;
+
+	for (int by = 0; by < numBlocksY; by++)
+	{
+		for (int bx = 0; bx < numBlocksX; bx++)
+		{
+			get4x4Block(rgbPixels, w, bx, by, block4x4);
+			getMinMaxColors_EuclideanDistance(block4x4, minColor, maxColor);
+
+			writeDXT3AlphaBits(block4x4, bx, by);
+
+			uint16 compressedMaxColor = color888to565(maxColor);
+			uint16 compressedMinColor = color888to565(minColor);
+
+			writeUint16(compressedMaxColor);
+			writeUint16(compressedMinColor);
+			writeCompressedIndices(block4x4, minColor, maxColor);
+		}
+	}
+}
+
+
+void DXTConverter::DebugDecompressTest(const uint8* compressedImagePixels, uint8* outputImagePixels, int w, int h)
+{
+	const int numBytesInBlock = 24;
+	uint8 compressedBlock[numBytesInBlock];
+
+
+	int numBlocksX = w / 4;
+	int numBlocksY = h / 4;
+
+	// every 4x4 block
+	for (int by = 0; by < numBlocksY; by++)
+	{
+		for (int bx = 0; bx < numBlocksX; bx++)
+		{
+			int startIndex = (by * numBlocksX + bx) * numBytesInBlock;
+			memcpy(compressedBlock, &compressedImagePixels[startIndex], numBytesInBlock);
+			decompressDebugAlphaBlock(compressedBlock, outputImagePixels, bx, by, w, h);
+		}
+	}
+}
+
+
+
+void DXTConverter::decompressDebugAlphaBlock(uint8* compressedBlock, uint8* outputImagePixels, int bx, int by, int w, int h)
+{
+	m_internalPtr = compressedBlock;
+
+
+	uint8 colorPalette[4][4];
+	uint8 maxColor[4];
+	uint8 minColor[4];
+
+
+	uint8 alphas[16];
+	for (int i = 0; i < 16; i++)
+	{
+		alphas[i] = readUint8();
+		alphas[i] = alphas[i] << 4;
+	}
+
+	uint16 compressedMaxColor = readUint16();
+	uint16 compressedMinColor = readUint16();
+
+	color565to888(compressedMaxColor, maxColor);
+	color565to888(compressedMinColor, minColor);
+
+	build4ColorPalette(colorPalette, minColor, maxColor);
+
+	unsigned int indices[NUM_PIXELS_IN_BLOCK];
+	uint32 compressedIndices = readUint32();
+	decompressIndices(compressedIndices, indices);
+
+
+	int numBlocksX = w / 4;
+	int numBlocksY = h / 4;
+
+	uint8 color[4];
+	int i = 0;
+	for (int y = 0; y < 4; y++)
+	{
+		for (int x = 0; x < 4; x++)
+		{
+			int colorIndex = indices[y * 4 + x];
+			int pixelStart = blockIndex2PixelStart(w, bx, by, x, y);
+
+			memcpy(color, &colorPalette[colorIndex][0], 3);
+
+			color[3] = alphas[i];
+			setImagePixelColor(outputImagePixels, pixelStart, color);
+			i++;
+		}
+	}
+}
+
+*/
+
+
+void DXTConverter::writeDXT3AlphaBits(const uint8* block)
+{
+	/*
+	for (int i = 0; i < 16; i++)
+	{
+		writeUint8((block[i * 4 + 3] >> 4));
+	}
+	*/
+
+	
+	// we need three bits for each index since our alpha has 8 values
+	// so each byte is 8 bits, so we have to concatenate our byte stream properly
+	// indices[2]'s last bit goes to byte0, while its last two bit goes to byte1
+
+	vector<uint32> list;
+
+	uint8 bytes[8];
+	int pixelIndex = 0;
+	for (int i = 0; i < 8; i++)
+	{
+		int index = pixelIndex * 4 + 3;
+		uint8 alpha0 = block[index];
+		pixelIndex += 1;
+		list.push_back((alpha0 >> 4));
+
+		int index1 = pixelIndex * 4 + 3;
+		uint8 alpha1 = block[index1];
+		pixelIndex += 1;
+
+		list.push_back((alpha1 & 0xF0));
+
+		bytes[i] = (alpha0 >> 4) | (alpha1 & 0xF0);
+
+//		cout << index << " " << index1 << " " << (int)(bytes[i]) << endl;
+		writeUint8(bytes[i]);
+	}	
+
+	debugDXT3AlphaValues.push_back(list);
+	
+}
 
 
 void DXTConverter::setWriteBufferStart(uint8* writeBuffer)
@@ -141,6 +337,12 @@ void DXTConverter::color565to888(uint16 color, uint8* outputColor)
 }
 
 
+// assuming little endian
+void DXTConverter::writeUint8(uint8 value, int bx, int by, int i)
+{
+	m_internalPtr[0] = value;
+	m_internalPtr += 1;
+}
 
 // assuming little endian
 void DXTConverter::writeUint8(uint8 value)
@@ -542,7 +744,7 @@ void DXTConverter::writeCompressedAlphaIndices(const uint8* colorBlock, const ui
 	for (int i = 0; i < 16; i++)
 	{
 		int minDistance = INT_MAX;
-		uint8 a = colorBlock[(i+1) * 4 - 1];
+		uint8 a = colorBlock[i * 4 + 3];
 		for (int j = 0; j < 8; j++)
 		{
 			int dist = abs(a - alphas[j]);
@@ -554,6 +756,24 @@ void DXTConverter::writeCompressedAlphaIndices(const uint8* colorBlock, const ui
 		}
 	}
 
+	/*
+	int i = 0;
+	for (int y = 0; y < 4; y++)
+	{
+		for (int x = 0; x < 4; x++)
+		{
+			int ps = blockIndex2PixelStart(debugWidth, debugGlobalBx, debugGlobalBy, x, y);
+			debugWrite[ps + 0] = colorBlock[i * 4 + 0];
+			debugWrite[ps + 1] = colorBlock[i * 4 + 1];
+			debugWrite[ps + 2] = colorBlock[i * 4 + 2];
+			debugWrite[ps + 3] = alphas[indices[i]];
+
+			i++;
+		}
+	}
+	*/
+
+
 	// we need three bits for each index since our alpha has 8 values
 	// so each byte is 8 bits, so we have to concatenate our byte stream properly
 	// indices[2]'s last bit goes to byte0, while its last two bit goes to byte1
@@ -561,7 +781,7 @@ void DXTConverter::writeCompressedAlphaIndices(const uint8* colorBlock, const ui
 	uint8 byte1 = (indices[2] >> 2) | (indices[3] << 1) | (indices[4] << 4) | (indices[5] << 7);
 	uint8 byte2 = (indices[5] >> 1) | (indices[6] << 2) | (indices[7] << 5);
 	uint8 byte3 = (indices[8] >> 0) | (indices[9] << 3) | (indices[10] << 6);
-	uint8 byte4 = (indices[10] >> 2) | (indices[11] << 1) | (indices[12] << 4) | (indices[13] << 7);;
+	uint8 byte4 = (indices[10] >> 2) | (indices[11] << 1) | (indices[12] << 4) | (indices[13] << 7);
 	uint8 byte5 = (indices[13] >> 1) | (indices[14] << 2) | (indices[15] << 5);
 
 	writeUint8(byte0);
@@ -610,7 +830,6 @@ void DXTConverter::decompressDXT1(const uint8* compressedImagePixels, uint8* dst
 	// so it's a 8:1 compression ratio
 	const int numBytesInBlock = 8;
 	uint8 compressedBlock[numBytesInBlock];
-	m_internalPtr = dstImgPixels;
 
 	int numBlocksX = width / 4;
 	int numBlocksY = height / 4;
@@ -637,9 +856,8 @@ void DXTConverter::decompressDXT1Block(uint8* DXTBlock, uint8* outputImagePixels
 	uint8 maxColor[4];
 	uint8 minColor[4];
 
-	uint8* temp = DXTBlock;
-
-	AddToDebugMemoryString(temp, bx, by, debugMemory2);
+//	uint8* temp = DXTBlock;
+//	AddToDebugMemoryString(temp, bx, by, debugMemory2);
 
 	m_internalPtr = DXTBlock;
 	uint16 compressedMaxColor = readUint16();
@@ -659,6 +877,135 @@ void DXTConverter::decompressDXT1Block(uint8* DXTBlock, uint8* outputImagePixels
 
 
 
+void DXTConverter::decompressDXT3(const uint8* compressedImagePixels, uint8* outputImagePixels, int width, int height, uint8* original)
+{
+//	const int numBytesInBlock = 24;
+	const int numBytesInBlock = 16;
+	uint8 compressedBlock[numBytesInBlock];
+
+	int numBlocksX = width / 4;
+	int numBlocksY = height / 4;
+
+	int index = 0;
+
+	// every 4x4 block
+	for (int y = 0; y < numBlocksY; y++)
+	{
+		for (int x = 0; x < numBlocksX; x++)
+		{
+			int startIndex = (y * numBlocksX + x) * numBytesInBlock;
+			memcpy(compressedBlock, &compressedImagePixels[startIndex], numBytesInBlock);
+			decompressDXT3Block(compressedBlock, outputImagePixels, x, y, width, height, original);
+		}
+	}
+}
+
+
+void DXTConverter::decompressDXT3Block(uint8* DXTBlock, uint8* outputImagePixels, int bx, int by, int width, int height, uint8* original)
+{
+	// we are getting four points
+	uint8 colorPalette[4][4];
+	uint8 maxColor[4], minColor[4];
+	uint8 alphaValues[16];
+
+	m_internalPtr = DXTBlock;
+
+	readDXT3AlphaBits(alphaValues);
+	/*
+	for (int i = 0; i < 16; i++)
+	{
+		alphaValues[i] = readUint8();
+		alphaValues[i] = alphaValues[i] << 4;
+	}
+	*/
+
+	uint16 compressedMaxColor = readUint16();
+	uint16 compressedMinColor = readUint16();
+
+	color565to888(compressedMaxColor, maxColor);
+	color565to888(compressedMinColor, minColor);
+
+	build4ColorPalette(colorPalette, minColor, maxColor);
+
+	unsigned int indices[NUM_PIXELS_IN_BLOCK];
+	uint32 compressedIndices = readUint32();
+	decompressIndices(compressedIndices, indices);
+
+	recreateBlockInImageDXT3(colorPalette, indices,
+		alphaValues, bx, by, width, height, outputImagePixels, original);
+
+
+}
+
+
+// void DXTConverter::readDXT3AlphaBits(uint8* alphaValues, int bx, int by)
+
+void DXTConverter::readDXT3AlphaBits(uint8* alphaValues)
+{
+	/*
+	for (int i = 0; i < 16; i++)
+	{
+		alphaValues[i] = readUint8();
+	}
+	*/
+
+	
+	int pixelIndex = 0;
+	for (int i = 0; i < 8; i++)
+	{
+		uint8 value = readUint8();
+
+		/*
+		if (bx == 68 && by == 7)
+		{
+			cout << endl << "readDXT3AlphaBits" << endl;
+			uint8 a0 = value;
+			std::bitset<8> a00(a0);
+			cout << a00 << endl;
+
+			int a = 1;
+		}
+		*/
+
+		uint8 alpha = value & 0x0F;
+		alphaValues[pixelIndex++] = (alpha << 4) | alpha;
+
+		/*
+		if (bx == 68 && by == 7)
+		{
+			cout << (uint32)(alpha << 4) << " ";
+		}
+		*/
+		alpha = value & 0xF0;
+		alphaValues[pixelIndex++] = alpha | (alpha >> 4);
+
+		/*
+		if (bx == 68 && by == 7)
+		{
+			cout << (uint32)(alpha) << endl;
+			int a = 1;
+		}
+		*/
+	}
+	
+}
+
+
+/*
+int a = 1;
+uint8 a0 = alpha0;
+std::bitset<8> a00(a0);
+
+uint8 a1 = alpha1;
+std::bitset<8> a11(a1);
+cout << a00 << " " << a11 << endl;
+*/
+
+
+
+
+
+
 // 16 input pixels (512 bits) into 128 bits of output. So it's 4:1 compression ratio
 // two 8 bit alpha values
 // 4x4 3 bit look up table: 16 * 3 = 48
@@ -667,7 +1014,6 @@ void DXTConverter::decompressDXT5(const uint8* compressedImagePixels, uint8* out
 {
 	const int numBytesInBlock = 16;
 	uint8 compressedBlock[numBytesInBlock];
-	m_internalPtr = outputImagePixels;
 
 	int numBlocksX = width / 4;
 	int numBlocksY = height / 4;
@@ -695,31 +1041,18 @@ void DXTConverter::decompressDXT5Block(uint8* DXTBlock, uint8* outputImagePixels
 	uint8 alphaPalette[8];
 	uint8 alphaIndices[16];
 
+
+	debugGlobalBx = bx;
+	debugGlobalBy = by;
+	debugNumPixelX = width / 4;
+
 	m_internalPtr = DXTBlock;
 
 	uint8 maxAlpha = readUint8();
 	uint8 minAlpha = readUint8();
-	buildAlphaPalette(alphaPalette, maxAlpha, minAlpha);
+	buildAlphaPalette(alphaPalette, minAlpha, maxAlpha);
 
-	/*
-	for (int i = 0; i < 8; i++)
-	{
-		cout << (int)alphaPalette[i] << " ";
-	}
-	cout << endl;
-	*/
 	readAndDecompresseAlphaIndices(alphaIndices);
-
-	/*
-	int debugListIndex = (by * width / 4) + bx;
-	for (int i = 0; i < 16; i++)
-	{
-		if (debugAlphaIndices[debugListIndex][i] != alphaIndices[i])
-		{
-			cout << "WRONG INDICES !!!!!!!!!!!!!" << endl;
-		}
-	}
-	*/
 
 	uint16 compressedMaxColor = readUint16();
 	uint16 compressedMinColor = readUint16();
@@ -732,16 +1065,10 @@ void DXTConverter::decompressDXT5Block(uint8* DXTBlock, uint8* outputImagePixels
 	unsigned int indices[NUM_PIXELS_IN_BLOCK];
 	uint32 compressedIndices = readUint32();
 	decompressIndices(compressedIndices, indices);
-
-	/*
-	if (bx > 1 && by > 1)
-	{
-		return;
-	}
-	*/
+	
 	recreateBlockInImageDXT5(colorPalette, indices,
 							alphaPalette, alphaIndices,
-							bx, by, width, height, outputImagePixels);
+							bx, by, width, height, outputImagePixels, debugOriginal);
 }
 
 
@@ -774,6 +1101,20 @@ void DXTConverter::readAndDecompresseAlphaIndices(uint8* alphaIndices)
 	alphaIndices[14] = (buffer[5] >> 2) & 0x07;
 	alphaIndices[15] = (buffer[5] >> 5);
 
+	int index = debugGlobalBy * debugNumPixelX + debugGlobalBx;
+
+
+	vector<int> list;
+	uint32 result = 0;
+	for (unsigned int i = 0; i < 16; i++)
+	{
+		if(debugAlphaIndices[index][i] != alphaIndices[i])
+		{
+			cout << "WRONG " << endl;
+		}
+	}
+
+//	debugAlphaIndices.push_back(list);
 
 
 }
@@ -813,16 +1154,18 @@ void DXTConverter::decompressIndices(uint32 compressedIndices, unsigned int* ind
 	for (unsigned int i = 0; i < 16; i++)
 	{
 		unsigned int numBitsToShift = i << 1;  // multiply by 2
-		// the mask 0x0003 is 00000011 in binary, so we just want the two bits
+		// the mask 0x0003 is 00000011 in binary, so we just want tDebhe two bits
 		unsigned int mask = 0x00000003 << numBitsToShift;
 		unsigned int index = (compressedIndices & mask) >> numBitsToShift;
 		indices[i] = index;
 	}
 }
 
+
+/*
 void DXTConverter::decompressAlphaIndices(uint8* alphaIndices, unsigned int* indices)
 {
-	/*
+
 	for (unsigned int i = 0; i < 16; i++)
 	{
 		unsigned int numBitsToShift = i << 1;  // multiply by 2
@@ -831,9 +1174,9 @@ void DXTConverter::decompressAlphaIndices(uint8* alphaIndices, unsigned int* ind
 		unsigned int index = (compressedIndices & mask) >> numBitsToShift;
 		indices[i] = index;
 	}
-	*/
-}
 
+}
+*/
 
 
 // localBlockX, localBlockY: the x and y within the block
@@ -900,9 +1243,35 @@ void DXTConverter::recreateBlockInImageDXT1(uint8 colorPalette[][4], unsigned in
 }
 
 
+void DXTConverter::recreateBlockInImageDXT3(uint8 colorPalette[][4], unsigned int* indices, 
+											uint8* alphaValues, int bx, int by, int width, int height, uint8* outputImagePixels, uint8* original)
+{
+	int numBlocksX = width / 4;
+	int numBlocksY = height / 4;
+	uint8 color[4];
+
+	for (int y = 0; y < 4; y++)
+	{
+		for (int x = 0; x < 4; x++)
+		{
+			int index = y * 4 + x;
+			int colorIndex = indices[index];
+			int pixelStart = blockIndex2PixelStart(width, bx, by, x, y);
+
+			memcpy(color, &colorPalette[colorIndex][0], 3);
+			color[3] = alphaValues[index];
+
+			setImagePixelColor(outputImagePixels, pixelStart, color);
+		}
+	}
+}
+
+
+
 void DXTConverter::recreateBlockInImageDXT5(uint8 colorPalette[][4], unsigned int* indices, 
 											uint8* alphaPalette, uint8* alphaIndices,
-											int bx, int by, int width, int height, uint8* outputImagePixels)
+											int bx, int by, int width, int height, uint8* outputImagePixels, uint8* original)
+
 {
 	int numBlocksX = width / 4;
 	int numBlocksY = height / 4;
@@ -919,6 +1288,7 @@ void DXTConverter::recreateBlockInImageDXT5(uint8 colorPalette[][4], unsigned in
 
 			memcpy(color, &colorPalette[colorIndex][0], 3);
 			color[3] = alphaPalette[alphaIndex];
+//			color[3] = original[pixelStart + 3];
 //			cout << (int)alphaPalette[alphaIndex] << endl;
 			setImagePixelColor(outputImagePixels, pixelStart, color);
 		}
@@ -960,6 +1330,16 @@ void DXTConverter::printDXTImage(const uint8* dxtImage, int numBlocksX, int numB
 void DXTConverter::printDXTBlock(const uint8* block)
 {
 //	cout << (int)(block[0]) << " " << (int)(block[1]) << " " << (int)(block[ndex + 2]) << " " << (int)(ptr[index + 3]) << ",	";
+}
+
+
+void DXTConverter::printBytes(const uint8* block, int numBytes)
+{
+	for (int i = 0; i < numBytes; i++)
+	{
+		cout << (int)(block[i]) << " ";
+	}
+	cout << endl;
 }
 
 void DXTConverter::DebugColor(uint8* color)

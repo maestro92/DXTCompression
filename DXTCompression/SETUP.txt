@@ -1,0 +1,86 @@
+####################################################################################################
+########################################## Downloads ###############################################
+####################################################################################################
+
+For some reason SDL_SaveBMP doesn't save alpha channel, so I had to use libpng for C++. 
+Setting up libpng was a serious pain the rear
+
+
+so for this project, I downloaded
+
+	libpng
+	zlib
+	png++
+
+
+-	libpng
+so I went to the following link, "LibPng for Windows"
+				
+				http://gnuwin32.sourceforge.net/packages/libpng.htm
+
+I download libpng from the following link
+
+				"Complete package, except sources"
+
+
+-	zlib
+
+you also need to download Zlib for Windows for 
+
+				http://gnuwin32.sourceforge.net/packages/zlib.htm
+
+
+and I got the one under 
+
+				"• Sources	 	Setup	 	656804	 	20 July 2005	 	d093777373e35a2be5b3e93751514d0f"
+
+-	png++
+
+I used the following link
+
+				http://download.savannah.nongnu.org/releases/pngpp/
+
+for this project, I just downloaded "png++-0.2.9.tar.gz"
+
+
+
+####################################################################################################
+########################################## Setting Up ##############################################
+####################################################################################################
+
+In visual studio add the following
+
+
+-	Configuration Properties -> C/C++ -> General
+Additional Include Directories:
+
+				libpng
+				libpng\include
+				png++
+				zlib				
+
+(or however you named your folders. sometimes when you download zlib or libpng, they will have the version names
+Example: zlib-1.2.11 instead of just zlib. I just trimmed the name for simplicity)
+
+
+-	Configuration Properties -> Linker -> General
+Additional Library Directories
+
+				libpng/lib				
+
+
+
+-	Configuration Properties -> Linker -> Input
+Additional Dependencies:
+				
+				libpng.lib
+
+	
+
+once downloaded, I put the following two dll in the project directory
+
+				libpng3.dll
+				libpng12.dll
+
+
+then you should be good to go!
